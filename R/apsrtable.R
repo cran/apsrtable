@@ -127,7 +127,7 @@ apsrtable <- function (...,
     if(se=="both" && !is.null(x$se)){      
       model.se.out[var.pos] <- ifelse(model.se.out != "",
                              paste(model.se.out," [",
-                                   formatC(coef(x)[,2],
+                                   formatC(x$coefficients[,2],
                                            digits=digits,
                                            format="f"),
                                    "]",sep=""),
@@ -196,8 +196,8 @@ apsrtable <- function (...,
                    'Na\\"ive standard errors in brackets}',
                    collapse="",sep=""),
              "\\\\" ) ,sep="")
-  
-  if(Minionfig) {cat("\n\\end{tabular}\n\n\\figureversion{proportional}\n") }
+  cat("\n\\end{tabular}\n")
+  if(Minionfig) {cat("\n\\figureversion{proportional}\n") }
   if(!Sweave) { cat("\n\\end{table}\n") }
   return(invisible(x))
 }
