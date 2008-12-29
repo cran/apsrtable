@@ -9,7 +9,7 @@ apsrtable <- function (...,
                        stars=1,lev=.05,
                        align=c("left","center","right"),
                        order=c("lr","rl","longest"),
-                       omitcoef=NULL,
+                       omitcoef=NULL,coef.names=NULL,
                        Sweave=FALSE,Minionfig=FALSE) {
   x <- character(0)
   signif.stars <- TRUE
@@ -66,42 +66,28 @@ apsrtable <- function (...,
     model.names=c(model.names, paste( "Model", m.first:nmodels))
   }
   
-  ## Now deal with variable names and positions
-  ## RULES: All according to longest model,
-  ##        then left to right
-  ## RESULT: a matrix of var indices of dimension equal to
-  ##         the data in the table: var.pos
-  
-  mlength <- sapply(model.summaries, function(x) length(coef(x)) )
-  longest <- which.max(mlength) # longest model
-  if(order=="rl") {
-    modelorder <- nmodels:1 } else {
-    modelorder <- 1:nmodels }
-  if(order=="longest") {
-    coefnames <-  names(coef(models[[longest]])) } else {
-    coefnames <- names(coef(models[[modelorder[1]]])) }
-  for(i in modelorder) {
-    matched <- match(names(models[[i]]$coef), coefnames, nomatch=0)
-    unmatched <- which(is.na(matched) | matched==0)
-    coefnames <- c(coefnames,
-                   names(models[[i]]$coef)[unmatched]
-                   )
-  }
-  
+## get and order the coefficient names from all models
+  coefnames <- orderCoef(model.summaries, order=order)
+
+  ## mark those to omit from the output
   incl <- rep(TRUE,length(coefnames))
   names(incl) <- coefnames
   if(!is.null(omitcoef)) {
     incl[omitcoef] <- FALSE
   }
-
-  model.summaries <- lapply(model.summaries, function(x) {
-    pos <- match(rownames(coef(x)),coefnames)
-    x$var.pos <- pos
-    return(x)
-  })
+## now figure out position of each coef in each model
+model.summaries <- coefPosition(model.summaries, coefnames)
+  
+  ## Now that the coef name matching is done, switch to pretty names
+  ## if they are supplied. 
+    if(!is.null(coef.names)) {
+      if(length(coef.names) != length(coefnames)) {
+        warning("Supplied coef.names not the same length as output. Check automatic names before supplying 'pretty' names.\n") }
+      coefnames <- coef.names}
+  
   
   out.table <- lapply(model.summaries, function(x){
-    var.pos <- x$var.pos
+    var.pos <- attr(x,"var.pos")
     model.out <- model.se.out <- star.out <- rep(NA,length(coefnames))
     model.out[var.pos] <- x$coefficients[,1]
     star.out[var.pos] <- apsrStars(x$coefficients,stars=stars,lev=lev,signif.stars=TRUE)
@@ -138,49 +124,53 @@ apsrtable <- function (...,
     model.se.out <- rep(model.se.out[incl], each=2)
     pos.se <- (1:length(model.out))[(1:length(model.out) %% 2==0)]
     model.out[pos.se] <- model.se.out[pos.se]
-
-    model.info <- list(
-                       "$N$"=formatC(sum(x$df[1:2]),format="d"),
-                       "$R^2$"=formatC(x$r.squared,format="f",digits=digits),
-                       "adj. $R^2$"=formatC(x$adj.r.squared,format="f",digits=digits),
-                       AIC=formatC(x$aic,format="f",digits=digits),
-                       BIC= formatC(
-                         ( (x$aic - 2*(length(x$coef)) ) +
-                             log(sum(x$df[1:2]))*
-                             length(coef(x)) ),
-                         format="f",digits=digits),
-                       "$\\log L$"=formatC( ((x$aic - 2*(length(x$coef))) / -2),
-                         format="f",digits=digits))    
-    attr(model.out,"model.info") <- unlist(model.info)
+    ## Add a new model info attribute to the model's output entry
+    ## To change modelInfo for a given model, change the method for it
+    ## e.g. "modelInfo.lm"
+    attr(model.out,"model.info") <- modelInfo(x,digits)
     return(model.out)
   })
   
   out.matrix <- matrix(unlist(out.table), length(coefnames[incl])*2, nmodels)
+
   out.matrix <- cbind(rep(coefnames[incl],each=2), out.matrix)
   out.matrix[ (row(out.matrix)[,1] %% 2 ==0) , 1] <- ""  
-  out.info <- matrix( unlist(lapply(out.table, attr, "model.info")), 6, nmodels,
-                     dimnames=list(names(attr(out.table[[1]],"model.info")),NULL))
-  ## Trim the out.info rows that are not used
-  out.info <- as.matrix(out.info[ apply(out.info,1,function(x) sum(x=="")!=nmodels),])
-  
-  out.info <- cbind(as.character(rownames(out.info)), out.info)
+
+  out.info <- lapply(out.table, attr, "model.info")
+  info.names <- orderCoef(out.info)
+  out.info <- coefPosition( out.info, orderCoef(out.info) )
+  out.info <- lapply(out.info, function(x) {
+    var.pos <- attr(x,"var.pos")
+    model.out <- rep("",length(info.names))
+    model.out[var.pos] <- coef(x)
+    return(model.out)
+  } )
+
+  out.info <- matrix(unlist(out.info), length(info.names), nmodels)
+  out.info <- cbind(as.character(info.names), out.info)
   out.matrix <- rbind(c("%",model.names ),
                       out.matrix)
+  outrows <- nrow(out.matrix)
+  
   out.matrix <- rbind(out.matrix,out.info)
   out.matrix[,-1] <- format(out.matrix[,-1])
   
   out.matrix[,1] <- format(out.matrix)[,1]
-  out.matrix <- rbind( c("",
-                         paste("\\multicolumn{1}{",align,"}{",
-                               model.names,"}",sep="") ),
-                         out.matrix)
   out.matrix <- apply(out.matrix, 1, paste, collapse=" & ")
-  
+
+  out.info <- out.matrix[ (1+outrows) : length(out.matrix) ]
+  out.matrix <- out.matrix[ 1:outrows ]
+
   x <- cat(paste("\\begin{tabular}{",align,
                  paste("D{.}{.}{",rep(adigits,nmodels),"}",sep="",collapse="")
-                 ,"}",sep=""))
-  x <- cat("\\hline\n")
+                 ,"}",sep="")); cat("\\hline \n &");
+  x <- cat( paste("", paste("\\multicolumn{1}{",align,"}{",
+                               model.names,"}",collapse=" & ")  ))
+  
+  x <- cat("\\\\ \\hline\n")
   x <- cat(paste(out.matrix, collapse="\\\\ \n"))
+  x <- cat("\\\\ \\hline\n")
+  x <- cat(paste(out.info, collapse="\\\\ \n"))
   ## Switch the se to either robust or regular
   se <- ifelse((se != "vcov" &&
                 sum(unlist(lapply(models,
@@ -289,13 +279,13 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
           if (signif.stars && stars=="default") {
             Signif <- symnum(pv, corr = FALSE, na = FALSE, 
                              cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), 
-                             symbols = c("***", "**", "*", "^\\dagger\ ", " "))
+                             symbols = c("^{***}", "^{**}", "^*", "^\\dagger\ ", " "))
             Cf <- cbind(Cf, format(Signif))
           }
           else if (signif.stars && stars==1) {
             Signif <- symnum(pv, corr = FALSE, na = FALSE, 
                              cutpoints = c(0,lev,1), 
-                             symbols = c("*"," "))
+                             symbols = c("^*"," "))
           }
           return(Signif)
         }
@@ -303,3 +293,78 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
 
     return()
   }
+
+
+setGeneric("modelInfo", function(x,digits) standardGeneric("modelInfo") )
+
+
+modelInfo.summary.lm <- function(x,digits) {
+  model.info <- list(
+                     "$N$"=formatC(sum(x$df[1:2]),format="d"),
+                     "$R^2$"=formatC(x$r.squared,format="f",digits=digits),
+                     "adj. $R^2$"=formatC(x$adj.r.squared,format="f",digits=digits),
+                     "Resid. sd" = formatC(x$sigma,format="f",digits=digits))
+  class(model.info) <- "model.info"
+  invisible(model.info) 
+}
+
+modelInfo.summary.glm <- function(x,digits) {
+  model.info <- list(
+                       "$N$"=formatC(sum(x$df[1:2]),format="d"),
+                       
+                       AIC=formatC(x$aic,format="f",digits=digits),
+                       BIC= formatC(
+                         ( (x$aic - 2*(length(x$coef)) ) +
+                             log(sum(x$df[1:2]))*
+                             length(coef(x)) ),
+                         format="f",digits=digits),
+                       "$\\log L$"=formatC( ((x$aic - 2*(length(x$coef))) / -2),
+                         format="f",digits=digits))
+  class(model.info) <- "model.info"
+  invisible(model.info)
+}
+setOldClass(c("summary.lm","summary.glm"))
+
+setMethod("modelInfo", "summary.lm", modelInfo.summary.lm )
+setMethod("modelInfo","summary.glm", modelInfo.summary.glm )
+
+"coef.model.info" <- function(x) { x <- as.matrix(unlist(x)); invisible(x)} 
+
+
+## RULES: All according to longest model,
+##        then left to right
+## RESULT: union of all models' coefficient names in requested order.
+orderCoef <- function(model.summaries,order="lr") {
+  nmodels <- length(model.summaries)
+  mlength <- sapply(model.summaries, function(x) length(coef(x)) )
+  longest <- which.max(mlength) # longest model
+  if(order=="rl") {
+    modelorder <- nmodels:1 } else {
+      modelorder <- 1:nmodels }
+  if(order=="longest") {
+    coefnames <-  rownames(coef(model.summaries[[longest]]))
+  } else {
+    coefnames <- rownames(coef(model.summaries[[modelorder[1]]])) }
+  
+  for(i in seq_along(model.summaries)) {
+    matched <- match(rownames(coef(model.summaries[[i]])), coefnames, nomatch=0)
+    unmatched <- which(is.na(matched) | matched==0)
+    coefnames <- c(coefnames,
+                   rownames(coef(model.summaries[[i]]))[unmatched]
+                   )
+  }
+  return(coefnames)
+}
+## Given a list of model summaries (or anything with a coef method),
+## and a master (unioned) list of coef names,
+##
+## Append an attribute to each element containing its coefs' position in the
+## master coefficient list
+"coefPosition" <- function(model.summaries, coefnames) {
+  model.summaries <- lapply(model.summaries, function(x) {
+    pos <- match(rownames(coef(x)), coefnames)
+    attr(x,"var.pos") <- pos
+    return(x)
+  })
+return(model.summaries)
+}

@@ -8,7 +8,7 @@
                   digits=2, stars=1, lev=.05,
                   align=c("left","center","right"),
                   order=c("lr","rl","longest"),
-                  omitcoef=NULL,
+                  omitcoef=NULL,coef.names=NULL,
                   Sweave=FALSE, Minionfig=FALSE)}
 \arguments{
   \item{...}{One or more fitted model objects of a supported class such as \code{lm} or \code{glm}. The model-object (a \code{list}) may also optionally contain an item named \code{se}: \code{model$se} may be a vector of standard errors, or a variance-covariance matrix, in which case the square root of the diagonal is used as the "robust" standard errors in the output. See the \code{se} argument.}
@@ -19,17 +19,45 @@
   \item{stars}{Show statistical significance "stars", either "1" or "default" where "default" is based on the output of \code{summary.lm}, except that a superscript dagger is used instead of a dot for \eqn{p < .10}. Here "default" means "the R default", not to be confused with the function's (perhaps confusing) Default=1}
   \item{lev}{When \code{stars} is \code{1}, what level should be used for the test to reject statistical insignificance and bestow the glittering star? Default=.05.}
   \item{align}{How should columns be aligned in the output? Model summaries are always decimal-aligned using Dcolumn (and therefore also set in math mode), but Dcolumn also provides for decimal-point centering. Model names are set in \code{\multicolumn} spans with alignment given here, as are model terms (leftmost column of table). Default = "left".}
-  \item{order}{Determines the order in which terms (rows) are included in the output when more than one model (column) is present. "lr" and "rl" take the order of terms from the first or last (leftmost or rightmost) model and appends new terms as they are encountered. "longest" uses the order of terms in the model with the most terms. Default = "lr".}
-  \item{omitcoef}{An optional positive-integer, or character, vector of coefficients to exclude from the output.}
+  \item{order}{Determines the order in which terms (rows) are included
+    in the output when more than one model (column) is present. "lr" and "rl" take the order of terms from the first or last (leftmost or rightmost) model and appends new terms as they are encountered. "longest" uses the order of terms in the model with the most terms. Default = "lr".}
+  \item{omitcoef}{An optional positive-integer, or character, vector of
+    coefficient indices to exclude from the output.}
+  \item{coef.names}{An optional vector of names for coefficients. It is
+    recommended to establish the \code{omitcoef} and \code{order} settings
+    with automatic symbolic naming before supplying a vector of "pretty" variable names.}
   \item{Sweave}{Toggle whether to include \code{\begin{table}...\end{table}}, \emph{empty} \code{\label{}} and \code{\caption{}}, or only the \code{\begin{tabular} ... \end{tabular}}. When called from within an \code{Sweave} document one would typically write such elements in the "documentation" (latex-part) rather than inside the code chunk. When called from an \code{Sweave} document, make sure to set the code chunk option \code{results=tex}. Default = FALSE}
   \item{Minionfig}{Include latex command to change the figure style to "tabular" and back to "proportional", specifically for the \code{MinionPro} latex package. Default = FALSE}
 }
 
-\details{Given one or several model objects of various types, \code{apsrtable()} will produce side-by-side output in well-formatted LaTeX using either automated numbering or user-supplied model names and \code{Dcolumn} decimal-aligned columns. Terms are matched across rows, with options for determining the order of terms. Nuisance terms (e.g. controls, or other quantities not of primary interest) may be omitted. Standard errors of parameter estimates are placed below estimates and in parentheses, with the option for the user to supply a replacement vector of standard errors or a replacement variance-covariance matrix, such as one estimated using the \code{sandwich} package. By default a single star denotes statistical significance at the .05 level, with the option to employ further decorations or specify another arbitrary level for the test. Finally, some model diagnostics are included along with a (somewhat) flexible means to program or include different items depending on model object class.}
+\details{Given one or several model objects of various types,
+  \code{apsrtable()} will produce side-by-side output in well-formatted
+  LaTeX using either automated numbering or user-supplied model names
+  and \code{Dcolumn} decimal-aligned columns. Terms are matched across
+  rows, with options for determining the order of terms. Nuisance terms
+  (e.g. controls, or other quantities not of primary interest) may be
+  omitted. Standard errors of parameter estimates are placed below
+  estimates and in parentheses, with the option for the user to supply a
+  replacement vector of standard errors or a replacement
+  variance-covariance matrix, such as one estimated using the
+  \code{sandwich} package. By default a single star denotes statistical
+  significance at the .05 level, with the option to employ further
+  decorations or specify another arbitrary level for the test. Finally,
+  some model diagnostics are included along with a (somewhat) flexible
+  means to program or include different items depending on model object
+  class.
+  
+  Model diagnostic information ("model info") is handled by formal \code{\link{modelInfo}} methods defined for model summaries. Included are \code{modelInfo,summary.lm-method}
+  and \code{modelInfo,summary.glm-method}. These methods return lists of
+  S3 class \code{model.info}, named formatted (character) elements. To
+  include fit information that is available from fitted model objects
+  but \emph{not their summaries,} you have to amend the relevent summary method
+  as well as the \code{modelInfo} method.}
+
 
 \references{}
 \author{Michael Malecki <malecki at wustl.edu>}
-\keywords{}
+\seealso{\code{\link{modelInfo,summary.lm-method}} and \code{\link{modelInfo,summary.lm-method}} for changing the model diagnostic summary information presented and how to include it for different classes of model objects.}
 \examples{ 
      ## Use the example from lm() to show both models:
      ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
@@ -39,7 +67,8 @@
      group <- gl(2,10,20, labels=c("Ctl","Trt"))
      weight <- c(ctl, trt)
      lm.D9 <- lm(weight ~ group)
+     glm.D9 <- glm(weight~group)
      lm.D90 <- lm(weight ~ group - 1) # omitting intercept
-     apsrtable(lm.D90, lm.D9, digits=1, align="center", 
+     apsrtable(lm.D90, lm.D9, glm.D9, digits=1, align="center", 
                stars="default", model.counter=0, order="rl")
 }
