@@ -9,6 +9,7 @@ apsrtable <- function (...,
                        stars=1,lev=.05,
                        align=c("left","center","right"),
                        order=c("lr","rl","longest"),
+                       notes=list(se.note(), stars.note() ),
                        omitcoef=NULL,coef.names=NULL,
                        Sweave=FALSE,Minionfig=FALSE) {
   x <- character(0)
@@ -24,6 +25,7 @@ apsrtable <- function (...,
                     digits)
   models <- list(...)
   nmodels <- length(models)
+  
   if(!Sweave){
     x <- cat("\\begin{table}[!ht]\n\\caption{}\n\\label{}\n")
   }
@@ -81,9 +83,9 @@ model.summaries <- coefPosition(model.summaries, coefnames)
   ## Now that the coef name matching is done, switch to pretty names
   ## if they are supplied. 
     if(!is.null(coef.names)) {
-      if(length(coef.names) != length(coefnames)) {
+      if(length(coef.names) != sum(incl)) {
         warning("Supplied coef.names not the same length as output. Check automatic names before supplying 'pretty' names.\n") }
-      coefnames <- coef.names}
+      coefnames[incl] <- coef.names}
   
   
   out.table <- lapply(model.summaries, function(x){
@@ -126,8 +128,8 @@ model.summaries <- coefPosition(model.summaries, coefnames)
     model.out[pos.se] <- model.se.out[pos.se]
     ## Add a new model info attribute to the model's output entry
     ## To change modelInfo for a given model, change the method for it
-    ## e.g. "modelInfo.lm"
-    attr(model.out,"model.info") <- modelInfo(x,digits)
+    ## see ?modelInfo, it is reasonably well documented.
+    attr(model.out,"model.info") <- modelInfo(x)
     return(model.out)
   })
   
@@ -169,26 +171,31 @@ model.summaries <- coefPosition(model.summaries, coefnames)
   
   x <- cat("\\\\ \\hline\n")
   x <- cat(paste(out.matrix, collapse="\\\\ \n"))
-  x <- cat("\\\\ \\hline\n")
+  x <- cat("\\\\\n")
   x <- cat(paste(out.info, collapse="\\\\ \n"))
-  ## Switch the se to either robust or regular
+  
+  ## Do notes
+   ## Evaluate the notes list
+    ## Switch the se to either robust or regular --
+  ## Robust is the default, but if only vcov are given,
+  ## quietly switch the argument.
   se <- ifelse((se != "vcov" &&
                 sum(unlist(lapply(models,
                                   function(x) !is.null(x$se))) >0 ) ) ,
                "robust","vcov")
+
+  notes <- lapply(notes,evalq)
   
-  cat("\\\\\\hline\n\\multicolumn{",nmodels+1,"}{l}{",
-      ifelse(se!="vcov","Robust s","S"),
-      "tandard errors in parentheses}",
-      ifelse(se=="both",
-             paste("\\\\\n\\multicolumn{",
-                   nmodels+1,"}{l}{",
-                   'Na\\"ive standard errors in brackets}',
-                   collapse="",sep=""),
-             "\\\\" ) ,sep="")
+  cat("\\\\ \\hline\n")
+  notes <- lapply(notes, function(x) {
+    paste("\\multicolumn{",nmodels+1,"}{l}{\\footnotesize{", x , "}}")
+             } )
+  cat(paste(notes), sep="\\\\\n")
+ 
+  
   cat("\n\\end{tabular}\n")
   if(Minionfig) {cat("\n\\figureversion{proportional}\n") }
-  if(!Sweave) { cat("\n\\end{table}\n") }
+  if(!Sweave) { cat("\\end{table}\n") }
   return(invisible(x))
 }
 
@@ -295,10 +302,12 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
   }
 
 
-setGeneric("modelInfo", function(x,digits) standardGeneric("modelInfo") )
+setGeneric("modelInfo", function(x) standardGeneric("modelInfo") )
 
 
-modelInfo.summary.lm <- function(x,digits) {
+modelInfo.summary.lm <- function(x) {
+  env <- sys.parent()
+  digits <- evalq(digits, env)
   model.info <- list(
                      "$N$"=formatC(sum(x$df[1:2]),format="d"),
                      "$R^2$"=formatC(x$r.squared,format="f",digits=digits),
@@ -308,7 +317,9 @@ modelInfo.summary.lm <- function(x,digits) {
   invisible(model.info) 
 }
 
-modelInfo.summary.glm <- function(x,digits) {
+modelInfo.summary.glm <- function(x) {
+  env <- sys.parent()
+  digits <- evalq(digits, env)
   model.info <- list(
                        "$N$"=formatC(sum(x$df[1:2]),format="d"),
                        
@@ -367,4 +378,23 @@ orderCoef <- function(model.summaries,order="lr") {
     return(x)
   })
 return(model.summaries)
+}
+
+"se.note" <- function() {
+  env <- sys.frame(-3)
+  note <- paste(ifelse( evalq(se,env) != "vcov","Robust s","S"),
+      "tandard errors in parentheses",
+      ifelse(evalq(se,env)=="both",
+             paste("\\\\\n\\multicolumn{",
+                   evalq(nmodels,env)+1,"}{l}{",
+                   'Na\\"ive standard errors in brackets',
+                   collapse="",sep=""),
+             "" ) ,sep="")
+  return(note)
+}
+"stars.note" <- function() {
+  env <- sys.frame(-3)
+  paste(ifelse(evalq(stars,env)=="default",
+               paste("$^\\dagger$ significant at $p<.10$; $^* p<.05$; $^{**} p<.01$; $^{***} p<.001$"),
+               paste("$^*$ indicates significance at $p<",evalq(lev,env),"$")))
 }

@@ -8,6 +8,7 @@
                   digits=2, stars=1, lev=.05,
                   align=c("left","center","right"),
                   order=c("lr","rl","longest"),
+		  notes=list(se.note(), stars.note()),
                   omitcoef=NULL,coef.names=NULL,
                   Sweave=FALSE, Minionfig=FALSE)}
 \arguments{
@@ -21,6 +22,7 @@
   \item{align}{How should columns be aligned in the output? Model summaries are always decimal-aligned using Dcolumn (and therefore also set in math mode), but Dcolumn also provides for decimal-point centering. Model names are set in \code{\multicolumn} spans with alignment given here, as are model terms (leftmost column of table). Default = "left".}
   \item{order}{Determines the order in which terms (rows) are included
     in the output when more than one model (column) is present. "lr" and "rl" take the order of terms from the first or last (leftmost or rightmost) model and appends new terms as they are encountered. "longest" uses the order of terms in the model with the most terms. Default = "lr".}
+  \item{notes}{A list to be evaluated and placed, one item per full-width (multicolumn) line, in footnote size. The default uses two functions, \code{\link{se.note}} and \code{\link{stars.note}} to generate notes about the standard errors and indicators of statistical significance. Other notes can be named function calls or simple character strings.}
   \item{omitcoef}{An optional positive-integer, or character, vector of
     coefficient indices to exclude from the output.}
   \item{coef.names}{An optional vector of names for coefficients. It is
@@ -55,9 +57,8 @@
   as well as the \code{modelInfo} method.}
 
 
-\references{}
 \author{Michael Malecki <malecki at wustl.edu>}
-\seealso{\code{\link{modelInfo,summary.lm-method}} and \code{\link{modelInfo,summary.lm-method}} for changing the model diagnostic summary information presented and how to include it for different classes of model objects.}
+\seealso{\code{\link{modelInfo,summary.lm-method}} and \code{\link{modelInfo,summary.lm-method}} for changing the model diagnostic summary information presented and how to include it for different classes of model objects; \code{\link{notefunctions}} for functions to produce dynamic ``notes'' beneath tables.}
 \examples{ 
      ## Use the example from lm() to show both models:
      ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
