@@ -11,7 +11,7 @@ stars.note()
 \details{
 Table notes are part of the tabular environment and may be based on the content of the table itself. For example, the \code{stars} argument to \code{\link{apsrtable}} determines whether one or many levels of statistical significance are indicated in the output. The \code{stars.note} function creates text to place in such a note.
 
-By default the output uses the notation \eqn{ * p <.05} and the example below shows a replacement function that states, ``significant at \code{lev} percent.''. 
+By default the output uses the notation \eqn{ * p <.05} and the example below shows a replacement function that states, \dQuote{significant at \code{lev} percent.}. 
 
 Thanks to lazy evaulation, you can access variables in the call to \code{apsrtable} from functions in \code{notes}. The appropriate environment is 3 levels up the call stack (see the example).
 
@@ -24,7 +24,7 @@ Remember, to escape characters in Latex output, backslashes have to be doubled i
 
 signif.pct <- function() {
   env <- sys.frame(-3); 
-  paste("$^*$ significant at", evalq(lev,env)*100,"percent")
+  paste("$^*$ significant at", evalq(lev,env)*100, "percent")
 }
 ### Continue the example from apsrtable
 \dontrun{

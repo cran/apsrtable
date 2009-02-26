@@ -1,4 +1,3 @@
-## New APSRtable that uses much cleverer subscripting
 apsrtable <- function (..., 
                        se=c("robust","vcov","both"),
                        # model.names can be shorter, others numbered;
@@ -11,30 +10,45 @@ apsrtable <- function (...,
                        order=c("lr","rl","longest"),
                        notes=list(se.note(), stars.note() ),
                        omitcoef=NULL,coef.names=NULL,
-                       Sweave=FALSE,Minionfig=FALSE) {
+                       coef.rows=2,
+                       multicolumn.align=c("center","left","right"),
+                       col.hspace=NULL,
+                       Sweave=FALSE, float="table",
+                       Minionfig=FALSE) {
   x <- character(0)
   signif.stars <- TRUE
   order <- match.arg(order,c("lr","rl","longest"))
   opts <- match.call(expand.dots=FALSE)
   se <- match.arg(se,c("robust","vcov","both"))
   align <- substr(align,1,1)
-  se=match.arg(se,c("robust","vcov","both"))
   align <- match.arg(align,c("l","c","r"))
+  multicolumn.align <- match.arg(substr(multicolumn.align,1,1),
+                                 c("c","l","r"))
   adigits <- ifelse(align=="c",
                     -1,
                     digits)
   models <- list(...)
   nmodels <- length(models)
-  
-  if(!Sweave){
-    x <- cat("\\begin{table}[!ht]\n\\caption{}\n\\label{}\n")
+ if(!Sweave){
+    x <- cat("\\begin{",float,"}[!ht]\n\\caption{}\n\\label{}\n",
+             sep="")
   }
   if(Minionfig){
     x <- cat("%Uncomment the following line and the end one to change figure versions\n%if you are using a full-featured family such as Minion Pro.\n\\figureversion{tabular}\n")
   }
+  ## used to multiply later for column counts
+  coef.cols <- ifelse(coef.rows==2, 1, 2)
 
-
-  
+  ## Two default behaviors for col.hspace:
+  ##  if in two-column-per-model mode, default to 1em
+  ##  otherwise, empty. If not "", add some latex around it.
+  if (is.null(col.hspace)) {
+  col.hspace <- ifelse(coef.cols==1,"",
+                       "1em")
+  }
+  if(col.hspace != "") {
+    col.hspace <- paste("@{\\hspace{",col.hspace,"}}",sep="")
+  }
   
   ## get the summaries for the objects
   model.summaries <- lapply(models,
@@ -121,23 +135,33 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                                    "]",sep=""),
                              "")
     }
-
-    model.out <- rep(model.out[incl], each=2)
-    model.se.out <- rep(model.se.out[incl], each=2)
-    pos.se <- (1:length(model.out))[(1:length(model.out) %% 2==0)]
-    model.out[pos.se] <- model.se.out[pos.se]
-    ## Add a new model info attribute to the model's output entry
-    ## To change modelInfo for a given model, change the method for it
-    ## see ?modelInfo, it is reasonably well documented.
-    attr(model.out,"model.info") <- modelInfo(x)
+    
+    if(coef.rows==2) {
+      ## Create two side by side columns and mesh them together
+      model.out <- rep(model.out[incl], each=2)
+      model.se.out <- rep(model.se.out[incl], each=2)
+      pos.se <- (1:length(model.out))[(1:length(model.out) %% 2==0)]
+      model.out[pos.se] <- model.se.out[pos.se]
+      ## Add a new model info attribute to the model's output entry
+      ## To change modelInfo for a given model, change the method for it
+      ## see ?modelInfo, it is reasonably well documented.
+    } else {
+      ## two columns per model
+      model.out <- model.out[incl]
+      model.out <- cbind(model.out, model.se.out[incl])
+    }
+    attr(model.out,"model.info") <- modelInfo(x)  
     return(model.out)
   })
   
-  out.matrix <- matrix(unlist(out.table), length(coefnames[incl])*2, nmodels)
+  out.matrix <- matrix(unlist(out.table),
+                       length(coefnames[incl])*coef.rows,
+                       nmodels*coef.cols)
 
-  out.matrix <- cbind(rep(coefnames[incl],each=2), out.matrix)
-  out.matrix[ (row(out.matrix)[,1] %% 2 ==0) , 1] <- ""  
-
+  out.matrix <- cbind(rep(coefnames[incl],each=coef.rows), out.matrix)
+  if(coef.rows==2) {
+    out.matrix[ (row(out.matrix)[,1] %% 2 ==0) , 1] <- ""  
+  }
   out.info <- lapply(out.table, attr, "model.info")
   info.names <- orderCoef(out.info)
   out.info <- coefPosition( out.info, orderCoef(out.info) )
@@ -150,24 +174,51 @@ model.summaries <- coefPosition(model.summaries, coefnames)
 
   out.info <- matrix(unlist(out.info), length(info.names), nmodels)
   out.info <- cbind(as.character(info.names), out.info)
-  out.matrix <- rbind(c("%",model.names ),
-                      out.matrix)
+  
+  if(coef.rows==2) {
+    out.matrix <- rbind(c("%",model.names ),out.matrix)
+  }
   outrows <- nrow(out.matrix)
   
-  out.matrix <- rbind(out.matrix,out.info)
-  out.matrix[,-1] <- format(out.matrix[,-1])
-  
-  out.matrix[,1] <- format(out.matrix)[,1]
-  out.matrix <- apply(out.matrix, 1, paste, collapse=" & ")
+  ## This does the pretty latex formatting, where commented model names
+  ## line up with appropriately sized columns of numbers.
 
-  out.info <- out.matrix[ (1+outrows) : length(out.matrix) ]
-  out.matrix <- out.matrix[ 1:outrows ]
+  ## Paul Johnson suggested a 'wide' or two column format for tables
+  ## which then means model info needs to be underneath the two
+  ## in a multicolumn span. But, for normal (two row, one column per coef)
+  ## format, this is extraneous markup and hard to read.
+  if(coef.cols==1) {
+    out.matrix <- rbind(out.matrix,out.info)
+    out.matrix[,-1] <- format(out.matrix[,-1])
+    out.matrix[,1] <- format(out.matrix)[,1]
+    out.matrix <- apply(out.matrix, 1, paste, collapse=" & ")
+    out.info <- out.matrix[ (1+outrows) : length(out.matrix) ]
+    out.matrix <- out.matrix[ 1:outrows ]
+  } else {
+    out.matrix <- format(out.matrix)
+    out.matrix <- apply(out.matrix, 1, paste, collapse=" & ")
+    ## now do the out.info as multicolumn blocks
+    out.info[,-1] <- format(out.info[,-1])
+    out.info[,-1] <- sapply(as.matrix(out.info[,-1]), function(x) {
+      paste("\\multicolumn{",coef.cols,"}{",multicolumn.align,
+            "}{",x,"}",sep="")
+    })
+    out.info[,1] <- format(out.info[,1])
+    out.info <- apply(out.info, 1, paste, collapse=" & ")
+  }
 
-  x <- cat(paste("\\begin{tabular}{",align,
-                 paste("D{.}{.}{",rep(adigits,nmodels),"}",sep="",collapse="")
-                 ,"}",sep="")); cat("\\hline \n &");
-  x <- cat( paste("", paste("\\multicolumn{1}{",align,"}{",
-                               model.names,"}",collapse=" & ")  ))
+ 
+ x <- cat(paste("\\begin{tabular}{",
+                align,
+                paste(rep(paste("D{.}{.}{",
+                            rep(adigits,coef.cols),
+                            "}",
+                            sep="",collapse=""),nmodels),
+                       collapse=col.hspace)
+                ,"}",sep=""), "\\hline \n &")
+ x <- cat( paste("", paste("\\multicolumn{",coef.cols,"}{",
+                            multicolumn.align,"}{",
+                            model.names,"}", collapse=" & ")  ))
   
   x <- cat("\\\\ \\hline\n")
   x <- cat(paste(out.matrix, collapse="\\\\ \n"))
@@ -195,7 +246,7 @@ model.summaries <- coefPosition(model.summaries, coefnames)
   
   cat("\n\\end{tabular}\n")
   if(Minionfig) {cat("\n\\figureversion{proportional}\n") }
-  if(!Sweave) { cat("\\end{table}\n") }
+  if(!Sweave) { cat("\\end{",float,"}\n",sep="") }
   return(invisible(x))
 }
 
@@ -334,10 +385,32 @@ modelInfo.summary.glm <- function(x) {
   class(model.info) <- "model.info"
   invisible(model.info)
 }
-setOldClass(c("summary.lm","summary.glm"))
 
+## 2009-02-25 mjm
+## modelInfo request from Antonio Ramos for AER Tobit function
+## Should be similar for 'survreg' objects, but without (necessarily)
+## censoring info.. 
+"modelInfo.summary.tobit" <- function(x) {
+ env <- sys.parent()
+ digits <- evalq(digits, env)
+ model.info <- list(
+                    "Total $N$"=formatC(as.integer(x$n[1]),format="d"),
+                    "Censored $N$"=formatC(sum(x$n[c(2,4)]),format="d"),
+                    "$\\log L$" =
+formatC(x$loglik[2],format="f",digits=digits),
+                    "p(Wald)"=formatC(pchisq(x$wald,
+                      sum(x$df) - x$idf,
+                      lower.tail = FALSE),
+                      digits=digits,format="f")
+                    )
+ class(model.info) <- "model.info"
+ return(model.info)
+} 
+
+setOldClass(c("summary.lm","summary.glm","summary.tobit"))
 setMethod("modelInfo", "summary.lm", modelInfo.summary.lm )
 setMethod("modelInfo","summary.glm", modelInfo.summary.glm )
+setMethod("modelInfo","summary.tobit", modelInfo.summary.tobit)
 
 "coef.model.info" <- function(x) { x <- as.matrix(unlist(x)); invisible(x)} 
 

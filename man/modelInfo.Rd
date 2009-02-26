@@ -2,17 +2,19 @@
 \alias{modelInfo}
 \alias{modelInfo,summary.lm-method}
 \alias{modelInfo,summary.glm-method}
+\alias{modelInfo,summary.tobit-method}
 \title{Model fit and diagnostic functions for output}
 \usage{ modelInfo(x) 
 \S4method{modelInfo}{summary.lm}(x)
 \S4method{modelInfo}{summary.glm}(x)
+\S4method{modelInfo}{summary.tobit}(x)
 }
 \description{Model diagnostic / summary information to be included in apsrtable output.}
 \arguments{
   \item{x}{A \code{summary} object.}
 }
 
-\details{Returns a list containing model diagnostic information, with an interface described here to allow the user to change the information returned and thus presented. The method is called by \code{apsrtable} within an \code{lapply} on a list of model summaries, and passing the \code{digits} argument of the \code{apsrtable} call. The modelInfo methods for a given model summary object simply return a list of arbitrary name-value pairs and give themselves the S3 class \code{modelInfo}. The modelInfo method dispach uses formal S4 classes, however. 
+\details{Returns a list containing model diagnostic information, with an interface described here to allow the user to change the information returned and thus presented. The method is called by \code{apsrtable} within an \code{lapply} on a list of model summaries. The modelInfo methods for a given model summary object simply return a list of arbitrary name-value pairs and give themselves the S3 class \code{modelInfo}. The modelInfo method dispach uses formal S4 classes, however. 
 
 The example shows how one can change the summary for \code{lm} objects to include only the \eqn{N} and residual \eqn{\sigma}.
 
