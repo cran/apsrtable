@@ -3,11 +3,13 @@
 \alias{modelInfo,summary.lm-method}
 \alias{modelInfo,summary.glm-method}
 \alias{modelInfo,summary.tobit-method}
+\alias{modelInfo,summary.gee-method}
 \title{Model fit and diagnostic functions for output}
 \usage{ modelInfo(x) 
 \S4method{modelInfo}{summary.lm}(x)
 \S4method{modelInfo}{summary.glm}(x)
 \S4method{modelInfo}{summary.tobit}(x)
+\S4method{modelInfo}{summary.gee}(x)
 }
 \description{Model diagnostic / summary information to be included in apsrtable output.}
 \arguments{

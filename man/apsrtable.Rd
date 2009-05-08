@@ -87,7 +87,10 @@
  \dQuote{tabular} and back to \dQuote{proportional}, specifically for the
  \code{MinionPro} latex package. Default = FALSE}
 }
-
+\value{A character vector containing lines of latex code. It can be
+  written out using \code{writeLines} for inclusion via
+  \code{\\input\{\}} in latex documents.
+}
 \details{Given one or several model objects of various types,
   \code{apsrtable()} will produce side-by-side output in well-formatted
   LaTeX using either automated numbering or user-supplied model names
@@ -119,7 +122,12 @@ Included are modelInfo functions for \code{lm}, \code{glm}, and \code{
 
 
 \author{Michael Malecki <malecki at wustl.edu>}
-\seealso{\code{\link{modelInfo}} for changing the model diagnostic summary information presented and how to include it for different classes of model objects; \code{\link{notefunctions}} for functions to produce dynamic \dQuote{notes} beneath tables.}
+\seealso{\code{\link{modelInfo}} for changing the model diagnostic
+  summary information presented and how to include it for different
+  classes of model objects; \code{\link{notefunctions}} for functions to
+  produce dynamic \dQuote{notes} beneath tables; and
+  \code{\link{apsrtableSummary}} for creating model summaries that
+  produce results compatible with what \code{apsrtable} expects.}
 \examples{ 
      ## Use the example from lm() to show both models:
      ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".

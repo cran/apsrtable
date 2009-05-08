@@ -15,7 +15,7 @@ apsrtable <- function (...,
                        col.hspace=NULL,
                        Sweave=FALSE, float="table",
                        Minionfig=FALSE) {
-  x <- character(0)
+  x <- list()
   signif.stars <- TRUE
   order <- match.arg(order,c("lr","rl","longest"))
   opts <- match.call(expand.dots=FALSE)
@@ -30,11 +30,11 @@ apsrtable <- function (...,
   models <- list(...)
   nmodels <- length(models)
  if(!Sweave){
-    x <- cat("\\begin{",float,"}[!ht]\n\\caption{}\n\\label{}\n",
+    x <- paste(x,"\\begin{",float,"}[!ht]\n\\caption{}\n\\label{}\n",
              sep="")
   }
   if(Minionfig){
-    x <- cat("%Uncomment the following line and the end one to change figure versions\n%if you are using a full-featured family such as Minion Pro.\n\\figureversion{tabular}\n")
+    x <- c(x,"%Uncomment the following line and the end one to change figure versions\n%if you are using a full-featured family such as Minion Pro.\n\\figureversion{tabular}\n")
   }
   ## used to multiply later for column counts
   coef.cols <- ifelse(coef.rows==2, 1, 2)
@@ -53,7 +53,10 @@ apsrtable <- function (...,
   ## get the summaries for the objects
   model.summaries <- lapply(models,
                             function(x) {
-                              s <- summary(x)
+                              s <- try(apsrtableSummary(x), silent=TRUE) 
+                              if (inherits(s, "try-error")) {
+                                s <- summary(x)
+                              }
                               if(!is.null(x$se) && se != "vcov") {
                                 est <- coef(x)
                                 if(class(x$se) == "matrix") {
@@ -208,7 +211,7 @@ model.summaries <- coefPosition(model.summaries, coefnames)
   }
 
  
- x <- cat(paste("\\begin{tabular}{",
+ x <- c(x,paste("\\begin{tabular}{",
                 align,
                 paste(rep(paste("D{.}{.}{",
                             rep(adigits,coef.cols),
@@ -216,14 +219,14 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                             sep="",collapse=""),nmodels),
                        collapse=col.hspace)
                 ,"}",sep=""), "\\hline \n &")
- x <- cat( paste("", paste("\\multicolumn{",coef.cols,"}{",
+ x <- c(x, paste("", paste("\\multicolumn{",coef.cols,"}{",
                             multicolumn.align,"}{",
                             model.names,"}", collapse=" & ")  ))
   
-  x <- cat("\\\\ \\hline\n")
-  x <- cat(paste(out.matrix, collapse="\\\\ \n"))
-  x <- cat("\\\\\n")
-  x <- cat(paste(out.info, collapse="\\\\ \n"))
+  x <- c(x,"\\\\ \\hline\n")
+  x <- c(x,paste(out.matrix, collapse="\\\\ \n"))
+  x <- c(x,"\\\\\n")
+  x <- c(x,paste(out.info, collapse="\\\\ \n"))
   
   ## Do notes
    ## Evaluate the notes list
@@ -231,23 +234,25 @@ model.summaries <- coefPosition(model.summaries, coefnames)
   ## Robust is the default, but if only vcov are given,
   ## quietly switch the argument.
   se <- ifelse((se != "vcov" &&
-                sum(unlist(lapply(models,
+                sum(unlist(lapply(model.summaries,
                                   function(x) !is.null(x$se))) >0 ) ) ,
                "robust","vcov")
 
   notes <- lapply(notes,evalq)
   
-  cat("\\\\ \\hline\n")
-  notes <- lapply(notes, function(x) {
-    paste("\\multicolumn{",nmodels+1,"}{l}{\\footnotesize{", x , "}}")
+  x <- c(x,"\\\\ \\hline\n")
+  notes <- lapply(notes, function(x) {  # eek! note coef cols was wrong
+                                        # fixed 2009-05-07 mjm
+    paste("\\multicolumn{",(nmodels*coef.cols)+1,"}{l}{\\footnotesize{", x , "}}",sep="")
              } )
-  cat(paste(notes), sep="\\\\\n")
+  x <- c(x, paste(notes, collapse="\\\\\n"))
  
   
-  cat("\n\\end{tabular}\n")
-  if(Minionfig) {cat("\n\\figureversion{proportional}\n") }
-  if(!Sweave) { cat("\\end{",float,"}\n",sep="") }
-  return(invisible(x))
+  x <- c(x,"\n\\end{tabular}\n")
+  if(Minionfig) {x <- c(x,"\n\\figureversion{proportional}\n") }
+  if(!Sweave) { x <- c(x,paste("\\end{",float,"}\n",sep="")) }
+  class(x) <- "apsrtable"
+  return(x)
 }
 
 
@@ -258,8 +263,10 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
                        dig.tst = max(1, min(5, digits - 1)), cs.ind = 1:k,
                        tst.ind = k + 1, zap.ind = integer(0), 
                        P.values = NULL,
-                       has.Pvalue = nc >= 4 && substr(colnames(x)[nc],
-                                      1, 3) == "Pr(",
+                       has.Pvalue = nc >= 3 && # used to be 4
+                       substr(colnames(x)[nc],
+                                      1, 3) == "Pr(" ||
+                       grep("z",colnames(x)[nc]) == TRUE,
                        eps.Pvalue = .Machine$double.eps, na.print = "NA",
                        stars="default",lev=.05,
     ...) 
@@ -341,7 +348,7 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
             Cf <- cbind(Cf, format(Signif))
           }
           else if (signif.stars && stars==1) {
-            Signif <- symnum(pv, corr = FALSE, na = FALSE, 
+           Signif <- symnum(pv, corr = FALSE, na = FALSE, 
                              cutpoints = c(0,lev,1), 
                              symbols = c("^*"," "))
           }
@@ -405,15 +412,32 @@ formatC(x$loglik[2],format="f",digits=digits),
                     )
  class(model.info) <- "model.info"
  return(model.info)
-} 
+}
+"modelInfo.summary.gee" <- function(x) {
+ env <- sys.parent()
+ digits <- evalq(digits, env)
+ model.info <- list(" " = ""
+                    )
+ class(model.info) <- "model.info"
+ return(model.info)
+}
 
-setOldClass(c("summary.lm","summary.glm","summary.tobit"))
+## tobit requested by Antonio Ramos added by mjm 2009-02-25
+## gee requested by Dustin Tingley started by mjm 2009-04-24
+
+setGeneric("modelInfo", def=function(x){standardGeneric("modelInfo")})
+setOldClass("summary.lm")
+setOldClass("summary.glm")
+setOldClass("summary.tobit")
+setOldClass("summary.gee")
 setMethod("modelInfo", "summary.lm", modelInfo.summary.lm )
 setMethod("modelInfo","summary.glm", modelInfo.summary.glm )
 setMethod("modelInfo","summary.tobit", modelInfo.summary.tobit)
+setMethod("modelInfo","summary.gee",modelInfo.summary.gee)
 
-"coef.model.info" <- function(x) { x <- as.matrix(unlist(x)); invisible(x)} 
-
+"coef.model.info" <- function(object,...) {
+  x <- as.matrix(unlist(object)); invisible(x)
+} 
 
 ## RULES: All according to longest model,
 ##        then left to right
@@ -470,4 +494,32 @@ return(model.summaries)
   paste(ifelse(evalq(stars,env)=="default",
                paste("$^\\dagger$ significant at $p<.10$; $^* p<.05$; $^{**} p<.01$; $^{***} p<.001$"),
                paste("$^*$ indicates significance at $p<",evalq(lev,env),"$")))
+}
+
+## apsrtableSummary enables easy S3 method masking of summary functions
+## where the model-package provides a summary not suitable for apsrtable,
+## such as z scores instead of pnorms.
+
+"apsrtableSummary" <- function(x) {
+  UseMethod("apsrtableSummary") }
+
+"apsrtableSummary.gee" <- function(x) {
+  s <- summary(x)
+  newCoef <- coef(s)
+  ## which columns have z scores? (two of them in robust case)
+  zcols <- grep("z",colnames(newCoef))
+  newCoef[,zcols] <- pnorm(abs(newCoef[,zcols]), lower.tail=FALSE)
+  colnames(newCoef)[zcols] <- "Pr(z)"
+  s$coefficients <- newCoef
+  ## put the robust se in $se so that notefunction works automatically
+  ## the se checker will overwrite [,4] with pt, but this doesn't matter
+  ## because the last column Pr(z) is used by apsrstars() anyway
+  ## and the se are pulled from $se.
+  if( class(x)[1] == "gee.robust") {
+    s$se <- coef(s)[,4]
+  }
+  return(s)
+}
+"print.apsrtable" <- function(x,...) {
+  cat(x)
 }

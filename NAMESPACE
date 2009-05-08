@@ -1,1 +1,4 @@
-export(apsrtable,modelInfo,se.note,stars.note)
+export(apsrtable,modelInfo,se.note,stars.note,apsrtableSummary)
+S3method(print,apsrtable)
+S3method(coef,model.info)
+S3method(apsrtableSummary,gee)
