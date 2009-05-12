@@ -17,18 +17,36 @@
                    Sweave=FALSE, float="table",
                    Minionfig=FALSE)}
 \arguments{
-  \item{...}{One or more fitted model objects of a supported class such as \code{lm} or \code{glm}. The model-object (a \code{list}) may also optionally contain an item named \code{se}: \code{model$se} may be a vector of standard errors, or a variance-covariance matrix, in which case the square root of the diagonal is used as the \dQuote{robust} standard errors in the output. See the \code{se} argument.}
-  \item{se}{Print the default standard errors (\dQuote{vcov}), or those supplied by the user (\dQuote{robust}) in the model, or both? In the case of \dQuote{both}, user-supplied errors are printed in (parentheses) and the default are printed in [square brackets.] If any model in \code{...} contains an \code{se} element and \dQuote{robust} is chosen (the default), output is labeled as \dQuote{robust;} if no models have an \code{se} element (all use model vcov) but \code{se="robust"}, labeling is simply \dQuote{Standard errors in parentheses.} Default = "robust".}
-  \item{model.names}{Optional vector of names to use as column headings in the table. If more models than names are supplied, unnamed models are numbered (starting at one more than the number of names).}
-  \item{model.counter}{Change the number to start counting from when using automatically numbered models. Default = 1.}
+  \item{...}{One or more fitted model objects of a supported class such
+    as \code{lm} or \code{glm}. The model-object (a \code{list}) may
+    also optionally contain an item named \code{se}: \code{model$se} may
+    be a vector of standard errors, or a variance-covariance matrix, in
+    which case the square root of the diagonal is used as the
+    \dQuote{robust} standard errors in the output. See the \code{se}
+    argument.
+  }
+  \item{se}{Print the default standard errors (\dQuote{vcov}), or those
+    supplied by the user (\dQuote{robust}) in the model, or both? In the
+    case of \dQuote{both}, user-supplied errors are printed in
+    (parentheses) and the default are printed in [square brackets.] If
+    any model in \code{...} contains an \code{se} element and
+    \dQuote{robust} is chosen (the default), output is labeled as
+    \dQuote{robust;} if no models have an \code{se} element (all use
+    model vcov) but \code{se="robust"}, labeling is simply
+    \dQuote{Standard errors inparentheses.} Default = "robust"
+  }
+  \item{model.names}{Optional vector of names to use as column headings
+    in the table. If more models than names are supplied, unnamed models
+    are numbered (starting at one more than the number of names).}
+  \item{model.counter}{Change the number to start counting from when
+    using automatically numbered models. Default = 1.}
   \item{digits}{Number of decimal places to report. Default = 2}
   \item{stars}{Show statistical significance \dQuote{stars}, either \dQuote{1} or
     \dQuote{default} where \dQuote{default} is based on the output of
     \code{summary.lm}, except that a superscript dagger is used instead
-    of a dot for \eqn{p < .10}. Here \dQuote{default} means \dQuote{the R default},
-    not to be confused with the function's (perhaps confusing)
+    of a dot for \eqn{p < .10}. Here \dQuote{default} means \dQuote{the R default}, not to be confused with the function's (perhaps confusing)
     Default=1}
-  \item{lev}{When \code{stars} is \code{1}, what level should be used
+  \item{lev}{When \code{stars=1}, what level should be used
     for the test to reject statistical insignificance and bestow the
     glittering star? Disable decoration entirely by specifying
     \code{lev=0}. Default=.05.}
@@ -108,14 +126,18 @@
   means to program or include different items depending on model object
   class.
   
-  Model diagnostic information (\dQuote{model info}) is handled by formal \code{\link{modelInfo}} methods defined for model summaries. 
-  These methods return lists of S3 class \code{model.info}, named formatted (character) elements. To
-  include fit information that is available from fitted model objects
-  but \emph{not their summaries,} you have to amend the relevent summary method
-  as well as the \code{modelInfo} method.
+  Model diagnostic information (\dQuote{model info}) is handled by
+  formal \code{\link{modelInfo}} methods defined for model
+  summaries. These methods return lists of S3 class \code{model.info},
+  named formatted (character) elements. To include fit (or other)
+  information that is available from fitted model objects but \emph{not
+  their summaries,} write an \code{\link{apsrtableSummary}} method to
+prepare a summary with the items needed for your own \code{modelInfo}
+  method.
   
 Included are modelInfo functions for \code{lm}, \code{glm}, and \code{
-  \link[AER]{tobit}} objects. Please email the author any modelInfo
+  \link[AER]{tobit}} and a skelton (incomplete \code{modelInfo}) for
+  \code{\link[gee]{gee}} objects. Please email the author any \code{modelInfo}
   functions you write for different model objects for inclusion in
   future releases.
 }

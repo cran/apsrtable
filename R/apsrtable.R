@@ -521,5 +521,5 @@ return(model.summaries)
   return(s)
 }
 "print.apsrtable" <- function(x,...) {
-  cat(x)
+  cat(paste(x))
 }
