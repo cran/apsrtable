@@ -245,10 +245,10 @@ setMethod("modelInfo", "summary.lm", function(x) {
   model.info <- list(
     "Continents"= (
         ifelse(!is.na(charmatch("laam",rownames(coef(x)))),
-          "\\mathrm{Yes}", "\\mathrm{No}")),
+          "\\multicolumn{1}{c}{Yes}", "\\multicolumn{1}{c}{No}")),
     "Colonies" = (
         ifelse(!is.na(charmatch("col",rownames(coef(x)))),
-          "\\mathrm{Yes}", "\\mathrm{No}")),
+          "\\multicolumn{1}{c}{Yes}", "\\multicolumn{1}{c}{No}")),
     "Number of\\tabularnewline Observations"= (
         formatC(sum(x$df[1:2]),format="d")),
     "adj. $R^2$" = (
@@ -281,7 +281,7 @@ notes=list(se.note(), stars.note())
 \centering
 \caption{Replication of Models 1--3 from Persson and Tabellini (2003), p. 149: ``Size of government and constitutions: Simple regression estimates.''}
 \label{final-table}
-\begin{tabular}{lD{.}{.}{2}D{.}{.}{2}D{.}{.}{2}}\hline 
+\begin{tabular}{l D{.}{.}{2} D{.}{.}{2} D{.}{.}{2}}\hline 
  & \multicolumn{1}{ l }{ Model 1 } & \multicolumn{1}{ l }{ Model 2 } & \multicolumn{1}{ l }{ Model 3 }\\ \hline
 %                                      & Model 1          & Model 2          & Model 3         \\ 
 Presidential                           & -6.08 ^{**}      & -5.29 ^{**}      &                 \\ 
@@ -294,8 +294,8 @@ Majoritarian Parliamentary             &                  &                  & -
                                        &                  &                  & (3.02)          \\ 
 Majoritarian Presidential              &                  &                  & -10.36 ^{***}   \\ 
                                        &                  &                  & (2.70)          \\
-Continents                             & \mathrm{No}     & \mathrm{Yes}    & \mathrm{Yes}   \\ 
-Colonies                               & \mathrm{No}     & \mathrm{Yes}    & \mathrm{Yes}   \\ 
+Continents                             & \multicolumn{1}{c}{No}     & \multicolumn{1}{c}{Yes}    & \multicolumn{1}{c}{Yes}   \\ 
+Colonies                               & \multicolumn{1}{c}{No}     & \multicolumn{1}{c}{Yes}    & \multicolumn{1}{c}{Yes}   \\ 
 Number of\tabularnewline Observations & 80               & 80               & 80              \\ 
 adj. $R^2$                             & 0.58             & 0.63             & 0.63            \\ \hline
 \multicolumn{ 4 }{l}{\footnotesize{ Robust standard errors in parentheses }}\\

@@ -2,6 +2,7 @@
 \alias{notefunctions}
 \alias{se.note}
 \alias{stars.note}
+\alias{pval.note}
 \title{Table notes}
 \usage{se.note()
 stars.note()

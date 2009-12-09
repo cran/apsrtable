@@ -1,5 +1,5 @@
 apsrtable <- function (..., 
-                       se=c("robust","vcov","both"),
+                       se=c("robust","vcov","both","pval"),
                        # model.names can be shorter, others numbered;
                        # numbers start at value of model.counter
                        model.names=NULL, model.counter=1, digits=2,
@@ -8,18 +8,20 @@ apsrtable <- function (...,
                        stars=1,lev=.05,
                        align=c("left","center","right"),
                        order=c("lr","rl","longest"),
-                       notes=list(se.note(), stars.note() ),
+                       notes=list(se.note(),stars.note() ),
                        omitcoef=NULL,coef.names=NULL,
                        coef.rows=2,
                        multicolumn.align=c("center","left","right"),
                        col.hspace=NULL,
                        Sweave=FALSE, float="table",
-                       Minionfig=FALSE) {
+                       Minionfig=FALSE,
+                       label=NULL,caption=NULL
+                       ) {
   x <- list()
   signif.stars <- TRUE
   order <- match.arg(order,c("lr","rl","longest"))
   opts <- match.call(expand.dots=FALSE)
-  se <- match.arg(se,c("robust","vcov","both"))
+  se <- match.arg(se,c("robust","vcov","both","pval"))
   align <- substr(align,1,1)
   align <- match.arg(align,c("l","c","r"))
   multicolumn.align <- match.arg(substr(multicolumn.align,1,1),
@@ -29,29 +31,56 @@ apsrtable <- function (...,
                     digits)
   models <- list(...)
   nmodels <- length(models)
- if(!Sweave){
-    x <- paste(x,"\\begin{",float,"}[!ht]\n\\caption{}\n\\label{}\n",
-             sep="")
-  }
-  if(Minionfig){
-    x <- c(x,"%Uncomment the following line and the end one to change figure versions\n%if you are using a full-featured family such as Minion Pro.\n\\figureversion{tabular}\n")
-  }
+
   ## used to multiply later for column counts
   coef.cols <- ifelse(coef.rows==2, 1, 2)
 
   ## Two default behaviors for col.hspace:
-  ##  if in two-column-per-model mode, default to 1em
+  ##  if in two-column-per-model mode, default to 2em
   ##  otherwise, empty. If not "", add some latex around it.
   if (is.null(col.hspace)) {
   col.hspace <- ifelse(coef.cols==1,"",
-                       "1em")
+                       "2em")
   }
   if(col.hspace != "") {
     col.hspace <- paste("@{\\hspace{",col.hspace,"}}",sep="")
   }
+  colspec <- paste("{",
+                   align,
+                   paste(rep(paste("D{.}{.}{",
+                                   rep(adigits,coef.cols),
+                                    "}",
+                                   sep="",collapse=""),nmodels),
+                         collapse=col.hspace)
+                   ,"}",collapse="")
+  if(float=="longtable") {
+    long <- TRUE
+    floatspec <- paste("\\begin{",float,"}",colspec,"\n",
+                       "\\caption{",caption,"}\n\\label{",label,"}",
+                       sep="")
+  } else
+  {
+    long <- FALSE
+    floatspec <- paste(ifelse(!Sweave,
+                              paste("\\begin{",float,"}[!ht]\n",
+                                    "\\caption{",caption,
+                                    "}\n\\label{",label,"}",sep=""),
+                              "" ),
+                       paste("\n\\begin{tabular}",colspec,sep=""))
+  }
+  x <- paste(floatspec,
+             ifelse(long,"\\\\",""),
+             sep="")
+
+  if(Minionfig){
+    x <- c(x,"%Uncomment the following line and the end one to change figure versions\n%if you are using a full-featured family such as Minion Pro.\n\\figureversion{tabular}\n")
+  }
+
   
   ## get the summaries for the objects
   model.summaries <- lapply(models,
+                            ## If an apsrtableSummary exists, use it
+                            ## Otherwise, use summary.
                             function(x) {
                               s <- try(apsrtableSummary(x), silent=TRUE) 
                               if (inherits(s, "try-error")) {
@@ -68,8 +97,15 @@ apsrtable <- function (...,
                                          length(x$residuals) - x$rank,
                                          lower.tail=FALSE)
                                 s$se <- x$se }
+                              if(se == "pval") {
+                                s$coefficients[,2] <- s$coefficients[,4]
+                                
+                              }
                               return(s)
                             } )
+  
+  ## Quietly switch the se.note to the pval.note as needed
+  if(se=="pval") { se.note <- pval.note }
 
   ## Set up the model names
   ## If there's a vector of names, use that, or as many as there are
@@ -209,21 +245,16 @@ model.summaries <- coefPosition(model.summaries, coefnames)
     out.info[,1] <- format(out.info[,1])
     out.info <- apply(out.info, 1, paste, collapse=" & ")
   }
-
- 
- x <- c(x,paste("\\begin{tabular}{",
-                align,
-                paste(rep(paste("D{.}{.}{",
-                            rep(adigits,coef.cols),
-                            "}",
-                            sep="",collapse=""),nmodels),
-                       collapse=col.hspace)
-                ,"}",sep=""), "\\hline \n &")
- x <- c(x, paste("", paste("\\multicolumn{",coef.cols,"}{",
-                            multicolumn.align,"}{",
-                            model.names,"}", collapse=" & ")  ))
   
-  x <- c(x,"\\\\ \\hline\n")
+  headrow <- paste("\n\\hline \n",
+                   paste(" &", paste("\\multicolumn{",coef.cols,"}{",
+                               multicolumn.align,"}{",
+                               model.names,"}", collapse=" & ")  ),
+               "\\\\ \\hline\n")
+  if(long) { headrow <- paste(headrow,"\\endhead\n",sep="") }
+  x <- c(x, headrow)
+  
+  #x <- c(x,"")
   x <- c(x,paste(out.matrix, collapse="\\\\ \n"))
   x <- c(x,"\\\\\n")
   x <- c(x,paste(out.info, collapse="\\\\ \n"))
@@ -237,7 +268,6 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                 sum(unlist(lapply(model.summaries,
                                   function(x) !is.null(x$se))) >0 ) ) ,
                "robust","vcov")
-
   notes <- lapply(notes,evalq)
   
   x <- c(x,"\\\\ \\hline\n")
@@ -247,10 +277,11 @@ model.summaries <- coefPosition(model.summaries, coefnames)
              } )
   x <- c(x, paste(notes, collapse="\\\\\n"))
  
-  
-  x <- c(x,"\n\\end{tabular}\n")
+  if(!long) { x <- c(x,"\n\\end{tabular}") }
+  if(long) { x <- c(x,"\n\\end{longtable}") }
+  x <- c(x,"\n")
   if(Minionfig) {x <- c(x,"\n\\figureversion{proportional}\n") }
-  if(!Sweave) { x <- c(x,paste("\\end{",float,"}\n",sep="")) }
+  if(!Sweave & !long) { x <- c(x,paste("\\end{",float,"}\n",sep="")) }
   class(x) <- "apsrtable"
   return(x)
 }
@@ -422,18 +453,37 @@ formatC(x$loglik[2],format="f",digits=digits),
  return(model.info)
 }
 
+"modelInfo.summary.coxph" <- function (x) {
+       env <- sys.parent()
+       digits <- evalq(digits, env)
+       model.info <- list()
+       model.info[["$N$"]] <- x$n
+       pv <- formatC(x$waldtest["pvalue"], format="f", digits=digits)
+       rsq <- formatC(x$rsq["rsq"], format="f", digits=digits)
+       maxrsq <- formatC(x$rsq["maxrsq"], format="f", digits=digits)
+       model.info$Wald <- sprintf("%.0f on %.0f df, p = %s",
+                                  x$waldtest["test"], x$waldtest["df"],
+                                  pv)
+       model.info[["$R^2$"]] <- sprintf("%s (Max %s)", rsq, maxrsq)
+       class(model.info) <- "model.info"
+       invisible(model.info)
+}
+
 ## tobit requested by Antonio Ramos added by mjm 2009-02-25
 ## gee requested by Dustin Tingley started by mjm 2009-04-24
+## coxph provided by David Hugh-Jones 2009-11-20 added mjm 2009-12-08
 
 setGeneric("modelInfo", def=function(x){standardGeneric("modelInfo")})
 setOldClass("summary.lm")
 setOldClass("summary.glm")
 setOldClass("summary.tobit")
 setOldClass("summary.gee")
+setOldClass("summary.coxph")
 setMethod("modelInfo", "summary.lm", modelInfo.summary.lm )
 setMethod("modelInfo","summary.glm", modelInfo.summary.glm )
 setMethod("modelInfo","summary.tobit", modelInfo.summary.tobit)
 setMethod("modelInfo","summary.gee",modelInfo.summary.gee)
+setMethod("modelInfo","summary.coxph",modelInfo.summary.coxph)
 
 "coef.model.info" <- function(object,...) {
   x <- as.matrix(unlist(object)); invisible(x)
@@ -489,6 +539,14 @@ return(model.summaries)
              "" ) ,sep="")
   return(note)
 }
+
+## Added pval support
+"pval.note" <- function() {
+  env <- sys.frame(-3)
+  note <- paste(ifelse(evalq(se,env) != "vcov", "Robust ", ""),
+                "$p$ values in parentheses",sep="")
+  return(note)
+}
 "stars.note" <- function() {
   env <- sys.frame(-3)
   paste(ifelse(evalq(stars,env)=="default",
@@ -520,6 +578,15 @@ return(model.summaries)
   }
   return(s)
 }
+
+apsrtableSummary.clogit <- apsrtableSummary.coxph <- function (x) {
+       s <- summary(x)
+       if("robust se" %in% colnames(coef(s))) s$se <- coef(s)[,"robust se"]
+       s$coefficients <- coef(s)[,c("coef","se(coef)", "Pr(>|z|)")]
+       return(s)
+}
+
+
 "print.apsrtable" <- function(x,...) {
   cat(paste(x))
 }

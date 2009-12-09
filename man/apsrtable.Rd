@@ -2,9 +2,9 @@
 \alias{apsrtable}
 \title{APSR-style latex tables with multiple models}
 \description{Produce well-formatted LaTeX tables of multiple models
-  side-by-side. Requires \code{\usepackage\{Dcolumn\}} in Latex/Sweave preamble.}
+  side-by-side. Requires \code{\\usepackage\{dcolumn\}} in Latex/Sweave preamble.}
 \usage{ apsrtable (..., 
-                   se=c("robust","vcov","both"),
+                   se=c("robust","vcov","both","pval"),
                    model.names=NULL, model.counter=1, digits=2,
                    stars=1,lev=.05,
                    align=c("left","center","right"),
@@ -15,7 +15,8 @@
                    multicolumn.align=c("center","left","right"),
                    col.hspace=NULL,
                    Sweave=FALSE, float="table",
-                   Minionfig=FALSE)}
+                   Minionfig=FALSE,
+                   label=NULL,caption=NULL)}
 \arguments{
   \item{...}{One or more fitted model objects of a supported class such
     as \code{lm} or \code{glm}. The model-object (a \code{list}) may
@@ -25,15 +26,30 @@
     \dQuote{robust} standard errors in the output. See the \code{se}
     argument.
   }
-  \item{se}{Print the default standard errors (\dQuote{vcov}), or those
-    supplied by the user (\dQuote{robust}) in the model, or both? In the
-    case of \dQuote{both}, user-supplied errors are printed in
-    (parentheses) and the default are printed in [square brackets.] If
+  \item{se}{A character string controlling the quantities in
+    parentheses, can take the following values:
+    \describe{
+      \item{\strong{\dQuote{robust}}}{Print (and calculate significance using)
+      user-supplied errors in an \code{$se} element appended to the
+      model object. }
+    \item{\dQuote{vcov}}{Use the standard errors contained in the
+      second column of \code{coef(summary(model))}. This behavior may be
+      useful in writing \code{\link{apsrtableSummary}} methods to
+      customize output or format new model classes.}
+    \item{\dQuote{both}}{User-supplied errors are printed in
+    (parentheses) and the default are printed in [square brackets.]}
+    \item{\dQuote{pval}}{Prints the \eqn{p} value contained in the
+      fourth column of \code{coef(summary(model))}. Quietly switches
+      \code{\link{se.note}} to say \dQuote{(Robust) \eqn{p} values in
+      parentheses.} Robust values are used (and so labeled contextually)
+      whenever an \code{$se} element is present in any model.}
+}
+    If
     any model in \code{...} contains an \code{se} element and
     \dQuote{robust} is chosen (the default), output is labeled as
     \dQuote{robust;} if no models have an \code{se} element (all use
     model vcov) but \code{se="robust"}, labeling is simply
-    \dQuote{Standard errors inparentheses.} Default = "robust"
+    \dQuote{Standard errors in parentheses.} Default = "robust"
   }
   \item{model.names}{Optional vector of names to use as column headings
     in the table. If more models than names are supplied, unnamed models
@@ -51,9 +67,9 @@
     glittering star? Disable decoration entirely by specifying
     \code{lev=0}. Default=.05.}
   \item{align}{How should columns be aligned in the output? Model
-    summaries are always decimal-aligned using Dcolumn (a nd therefore
-    also set in math mode), but Dcolumn also provides for decimal-point
-    centering. Model names are set in \code{\multicolumn} spans with
+    summaries are always decimal-aligned using dcolumn (and therefore
+    also set in math mode), but dcolumn also provides for decimal-point
+    centering. Model names are set in \code{\\multicolumn} spans with
     alignment given here, as are model terms (leftmost column of
     table). Default = \dQuote{left}.}
   \item{order}{Determines the order in which terms (rows) are included
@@ -71,15 +87,13 @@
   \item{omitcoef}{An optional positive-integer, or character, vector of
     coefficient indices to exclude from the output.}
   \item{coef.names}{An optional vector of names for coefficients. It is
-    recommended to establish the \code{omitcoef} and \code{order} settings
-    with automatic symbolic naming before supplying a vector of \dQuote{pretty}
-    variable names.}
-  
-
+    recommended to establish the \code{omitcoef} and \code{order}
+    settings with automatic symbolic naming before supplying a vector of
+    \dQuote{pretty} variable names.}
   \item{coef.rows}{The number of rows in the table given to each
-  coefficient: by default each coefficient's standard error is printed
-  in a row beneath it, but setting \code{coef.rows} to 1 places it in a
-  new column to the right instead.}
+    coefficient: by default each coefficient's standard error is printed
+    in a row beneath it, but setting \code{coef.rows} to 1 places it in
+    a new column to the right instead.}
   \item{multicolumn.align}{Alignment for the table's \code{multicolumn}
   spans: typically only the model names at the top, but, in the case of
   \code{coef.rows=1}, the \code{model.info} is also aligned beneath both
@@ -89,22 +103,32 @@
   \code{em}) to insert between each model column(s). Intended mainly to
   separate models from each other when \code{coef.rows=1}. Default=NULL}
  \item{Sweave}{Toggle whether to include
- \code{\begin{table}...\end{table}}, \emph{empty} \code{\label{}} and
- \code{\caption{}}, or only the \code{\begin{tabular}
- ... \end{tabular}}. When called from within an \code{Sweave} document
- one would typically write such elements in the \dQuote{documentation}
- (latex-part) rather than inside the code chunk. When called from an
- \code{Sweave} document, make sure to set the code chunk option
- \code{results=tex}. Default = FALSE}
-  \item{float}{if \code{Sweave} is false -- that is, if
- \emph{apsrtable} is supposed to wrap the output in the float
- environment, \code{float} allows you to specify an arbitrary custom
- float environment. Some useful ones include \dQuote{sidewaystable} (latex
-  package \emph{rotating}), or \dQuote{longtable}}
+  \code{\\begin{table}...\\end{table}}, label, and caption, or only the
+  \code{\\begin{tabular} ... \\end{tabular}}. When called from within an
+  \code{Sweave} document one would typically write such elements in the
+  \dQuote{documentation} (latex-part) rather than inside the code
+  chunk. When called from an \code{Sweave} document, make sure to set
+  the code chunk option \code{results=tex}. Default = FALSE}
+  \item{float}{if \code{Sweave} is false -- that is, if \emph{apsrtable}
+  is supposed to wrap the output in the float environment, \code{float}
+  allows you to specify an arbitrary custom float environment. Some
+  useful ones include \dQuote{sidewaystable} (latex package
+  \emph{rotating}), or \dQuote{longtable}. In the special case of
+  \dQuote{longtable}, the header row of model names is included on all
+  pages, and the \code{label} and \code{caption} arguments are included
+  \emph{even when \code{Sweave=TRUE}} because of the structure of the
+  latex environment.}
   \item{Minionfig}{Include latex command to change the figure style to
  \dQuote{tabular} and back to \dQuote{proportional}, specifically for the
  \code{MinionPro} latex package. Default = FALSE}
+\item{label}{A string to be used as the label in latex for the
+  table. Used only when \code{Sweave=FALSE}, unless
+  \code{float="longtable"}.}
+\item{caption}{A latex string to be used as the caption for the
+  table (remember to use double backslashes for latex commands in R).
+  Used only when \code{Sweave=FALSE}, unless \code{float="longtable"}.}
 }
+
 \value{A character vector containing lines of latex code. It can be
   written out using \code{writeLines} for inclusion via
   \code{\\input\{\}} in latex documents.
@@ -112,7 +136,7 @@
 \details{Given one or several model objects of various types,
   \code{apsrtable()} will produce side-by-side output in well-formatted
   LaTeX using either automated numbering or user-supplied model names
-  and \code{Dcolumn} decimal-aligned columns. Terms are matched across
+  and \code{dcolumn} decimal-aligned columns. Terms are matched across
   rows, with options for determining the order of terms. Nuisance terms
   (e.g. controls, or other quantities not of primary interest) may be
   omitted. Standard errors of parameter estimates are placed below
@@ -136,10 +160,12 @@ prepare a summary with the items needed for your own \code{modelInfo}
   method.
   
 Included are modelInfo functions for \code{lm}, \code{glm}, and \code{
-  \link[AER]{tobit}} and a skelton (incomplete \code{modelInfo}) for
-  \code{\link[gee]{gee}} objects. Please email the author any \code{modelInfo}
-  functions you write for different model objects for inclusion in
-  future releases.
+  \link[AER]{tobit}}, \code{\link[survival]{coxph}},
+  \code{\link[survival]{clogit}} and a skelton (incomplete
+  \code{modelInfo}) for \code{\link[gee]{gee}} objects. Please email the
+  author any \code{modelInfo} functions you write for different model
+  objects for inclusion in future releases.
+
 }
 
 

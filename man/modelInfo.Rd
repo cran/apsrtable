@@ -4,12 +4,16 @@
 \alias{modelInfo,summary.glm-method}
 \alias{modelInfo,summary.tobit-method}
 \alias{modelInfo,summary.gee-method}
+\alias{modelInfo,summary.coxph-method}
+\alias{modelInfo,summary.clogit-method}
 \title{Model fit and diagnostic functions for output}
 \usage{ modelInfo(x) 
 \S4method{modelInfo}{summary.lm}(x)
 \S4method{modelInfo}{summary.glm}(x)
 \S4method{modelInfo}{summary.tobit}(x)
 \S4method{modelInfo}{summary.gee}(x)
+\S4method{modelInfo}{summary.coxph}(x)
+\S4method{modelInfo}{summary.clogit}(x)
 }
 \description{Model diagnostic / summary information to be included in apsrtable output.}
 \arguments{
@@ -20,7 +24,7 @@
 
 The example shows how one can change the summary for \code{lm} objects to include only the \eqn{N} and residual \eqn{\sigma}.
 
-It is highly likely you will have to call \code{\link[Methods]{setOldClass}} in order to register new \code{modelInfo} methods for most types of model summary objects. S4 method dispach makes changing and overriding these functions much more straightforward than the alternative.
+If you register a \code{modelInfo} method and it appears not to work, try calling \code{\link[methods]{setOldClass}} in order to register new \code{modelInfo} methods for your model summary object. Method dispatch in R has some subtleties.
 }
 \value{A list of named character objects representing the lines of model diagnostic information to be included for a given class of model. For example, the default for \code{\link[stats]{lm}} reports the \eqn{N, R^2}, adjusted \eqn{R^2}, and residual \eqn{\sigma}. The default for \code{\link[stats]{glm}} includes the \eqn{N}, AIC, BIC, and log-likelihood. Common names across model classes in the same table -- e.g., the \eqn{N} -- are matched by name, exactly like the model coefficients (indeed, the same functions aggregate terms and order across models.) }
 
