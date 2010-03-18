@@ -9,14 +9,15 @@
                    stars=1,lev=.05,
                    align=c("left","center","right"),
                    order=c("lr","rl","longest"),
-                   notes=list(se.note(), stars.note() ),
+                   notes=list(se.note, stars.note),
                    omitcoef=NULL,coef.names=NULL,
                    coef.rows=2,
                    multicolumn.align=c("center","left","right"),
                    col.hspace=NULL,
                    Sweave=FALSE, float="table",
                    Minionfig=FALSE,
-                   label=NULL,caption=NULL)}
+                   label=NULL,caption=NULL,
+                   caption.position=c("above","below"))}
 \arguments{
   \item{...}{One or more fitted model objects of a supported class such
     as \code{lm} or \code{glm}. The model-object (a \code{list}) may
@@ -132,6 +133,10 @@
 \item{caption}{A latex string to be used as the caption for the
   table (remember to use double backslashes for latex commands in R).
   Used only when \code{Sweave=FALSE}, unless \code{float="longtable"}.}
+\item{caption.position}{Determines the placement of the caption and
+  label with respect to the tabular environment. (Not thoroughly tested
+  with alternative float environments, but should work with the standard
+  \code{table/tabular} combination.) Default=\code{"above"}}
 }
 
 \value{A character vector containing lines of latex code. It can be
@@ -155,7 +160,7 @@
   means to program or include different items depending on model object
   class.
 
-  The argument \code{omitcoef} suppresses output of terms in output. It
+  The argument \code{omitcoef} suppresses the output of specific rows. It
   may be either a valid subscript index (integer or logical if opacity is desired, or
   character for transparency), or an \code{\link{expression}}, such as a
   \code{\link{grep}} expression to be evaluated with respect to
@@ -164,7 +169,7 @@
   example below, \dQuote{(Intercept)} is excluded by a regular
   expression matching the parenthesis.
 
-  To include multiple regular expressions, or a mix of expressions with
+  To exclude multiple regular expressions, or a mix of expressions with
   other types, you may supply a \link{list}, but you must ensure that
   the result is a valid subscript list: all character, all numeric, or
   all logical. For example, if you refer to a specific coefficient by

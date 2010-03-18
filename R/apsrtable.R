@@ -8,14 +8,15 @@ apsrtable <- function (...,
                        stars=1,lev=.05,
                        align=c("left","center","right"),
                        order=c("lr","rl","longest"),
-                       notes=list(se.note(),stars.note() ),
+                       notes=list(se.note,stars.note),
                        omitcoef=NULL,coef.names=NULL,
                        coef.rows=2,
                        multicolumn.align=c("center","left","right"),
                        col.hspace=NULL,
                        Sweave=FALSE, float="table",
                        Minionfig=FALSE,
-                       label=NULL,caption=NULL
+                       label=NULL,caption=NULL,
+                       caption.position=c("above","below") 
                        ) {
   x <- list()
   signif.stars <- TRUE
@@ -29,6 +30,7 @@ apsrtable <- function (...,
   adigits <- ifelse(align=="c",
                     -1,
                     digits)
+  caption.position <- match.arg(substr(caption.position,1,1), c("a","b"))
   models <- list(...)
   nmodels <- length(models)
 
@@ -56,15 +58,18 @@ apsrtable <- function (...,
   if(float=="longtable") {
     long <- TRUE
     floatspec <- paste("\\begin{",float,"}",colspec,"\n",
-                       "\\caption{",caption,"}\n\\label{",label,"}",
+                       ifelse(caption.position=="a",
+                              paste("\\caption{",caption,"}\n\\label{",label,"}",sep=""),
+                              ""),
                        sep="")
   } else
   {
     long <- FALSE
     floatspec <- paste(ifelse(!Sweave,
                               paste("\\begin{",float,"}[!ht]\n",
-                                    "\\caption{",caption,
-                                    "}\n\\label{",label,"}",sep=""),
+                                    ifelse(caption.position=="a",
+                                           paste("\\caption{",caption,"}\n\\label{",label,"}",sep=""),
+                                           ""),sep=""),
                               "" ),
                        paste("\n\\begin{tabular}",colspec,sep=""))
   }
@@ -278,7 +283,9 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                 sum(unlist(lapply(model.summaries,
                                   function(x) !is.null(x$se))) >0 ) ) ,
                "robust","vcov")
-  notes <- lapply(notes,evalq)
+  myenv <- new.env()
+  notes <- lapply(notes, do.call,
+                  args=list(env=myenv))
   
   x <- c(x,"\\\\ \\hline\n")
   notes <- lapply(notes, function(x) {  # eek! note coef cols was wrong
@@ -289,6 +296,9 @@ model.summaries <- coefPosition(model.summaries, coefnames)
  
   if(!long) { x <- c(x,"\n\\end{tabular}") }
   if(long) { x <- c(x,"\n\\end{longtable}") }
+  if(caption.position=="b") {
+    x <- c(x, paste("\n\\caption{",caption,"}\n\\label{",label,"}",sep=""))
+  }
   x <- c(x,"\n")
   if(Minionfig) {x <- c(x,"\n\\figureversion{proportional}\n") }
   if(!Sweave & !long) { x <- c(x,paste("\\end{",float,"}\n",sep="")) }
@@ -406,7 +416,7 @@ setGeneric("modelInfo", function(x) standardGeneric("modelInfo") )
 
 modelInfo.summary.lm <- function(x) {
   env <- sys.parent()
-  digits <- evalq(digits, env)
+  digits <- evalq(digits, envir=env)
   model.info <- list(
                      "$N$"=formatC(sum(x$df[1:2]),format="d"),
                      "$R^2$"=formatC(x$r.squared,format="f",digits=digits),
@@ -418,7 +428,7 @@ modelInfo.summary.lm <- function(x) {
 
 modelInfo.summary.glm <- function(x) {
   env <- sys.parent()
-  digits <- evalq(digits, env)
+  digits <- evalq(digits, envir=env)
   model.info <- list(
                        "$N$"=formatC(sum(x$df[1:2]),format="d"),
                        
@@ -442,7 +452,7 @@ modelInfo.summary.glm <- function(x) {
 ## censoring info.. 
 "modelInfo.summary.tobit" <- function(x) {
  env <- sys.parent()
- digits <- evalq(digits, env)
+ digits <- evalq(digits, envir=env)
  model.info <- list(
                     "Total $N$"=formatC(as.integer(x$n[1]),format="d"),
                     "Censored $N$"=formatC(sum(x$n[c(2,4)]),format="d"),
@@ -458,7 +468,7 @@ formatC(x$loglik[2],format="f",digits=digits),
 }
 "modelInfo.summary.gee" <- function(x) {
  env <- sys.parent()
- digits <- evalq(digits, env)
+ digits <- evalq(digits, envir=env)
  model.info <- list(" " = ""
                     )
  class(model.info) <- "model.info"
@@ -467,7 +477,7 @@ formatC(x$loglik[2],format="f",digits=digits),
 
 "modelInfo.summary.coxph" <- function (x) {
        env <- sys.parent()
-       digits <- evalq(digits, env)
+       digits <- evalq(digits, envir=env)
        model.info <- list()
        model.info[["$N$"]] <- x$n
        pv <- formatC(x$waldtest["pvalue"], format="f", digits=digits)
@@ -541,31 +551,28 @@ orderCoef <- function(model.summaries,order="lr") {
 return(model.summaries)
 }
 
-"se.note" <- function() {
-  env <- sys.frame(-3)
-  note <- paste(ifelse( evalq(se,env) != "vcov","Robust s","S"),
-      "tandard errors in parentheses",
-      ifelse(evalq(se,env)=="both",
-             paste("\\\\\n\\multicolumn{",
-                   evalq(nmodels,env)+1,"}{l}{",
-                   'Na\\"ive standard errors in brackets',
-                   collapse="",sep=""),
-             "" ) ,sep="")
+"se.note" <- function(env) {
+  note <- paste(ifelse( evalq(se,envir=env) != "vcov","Robust s","S"),
+                "tandard errors in parentheses",
+                ifelse(evalq(se,envir=env)=="both",
+                       paste("\\\\\n\\multicolumn{",
+                             evalq(nmodels,envir=env)+1,"}{l}{",
+                             'Na\\"ive standard errors in brackets',
+                             collapse="",sep=""),
+                       "" ) ,sep="")
   return(note)
 }
 
 ## Added pval support
-"pval.note" <- function() {
-  env <- sys.frame(-3)
-  note <- paste(ifelse(evalq(se,env) != "vcov", "Robust ", ""),
+"pval.note" <- function(env) {
+  note <- paste(ifelse(evalq(se,envir=env) != "vcov", "Robust ", ""),
                 "$p$ values in parentheses",sep="")
   return(note)
 }
-"stars.note" <- function() {
-  env <- sys.frame(-3)
-  paste(ifelse(evalq(stars,env)=="default",
+"stars.note" <- function(env) {
+  paste(ifelse(evalq(stars,envir=env)=="default",
                paste("$^\\dagger$ significant at $p<.10$; $^* p<.05$; $^{**} p<.01$; $^{***} p<.001$"),
-               paste("$^*$ indicates significance at $p<",evalq(lev,env),"$")))
+               paste("$^*$ indicates significance at $p<",evalq(lev,envir=env),"$")))
 }
 
 ## apsrtableSummary enables easy S3 method masking of summary functions
@@ -603,7 +610,7 @@ return(model.summaries)
        s <- summary(x)
        coefs <- coef(s)
        theta <- matrix(c(s$theta, s$SE.theta,NA,NA),1,4)
-       theta[,3] <- theta[,1]/theta[,2];
+       theta[,3] <- theta[,1]/theta[,2] ;
        theta[,4] <- pnorm(abs(theta[,3]),lower.tail=FALSE)
        rownames(theta) <- "$\\theta$"
        s$coefficients <- rbind(coefs,theta)

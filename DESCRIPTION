@@ -1,5 +1,5 @@
 Package: apsrtable
-Version: 0.8-1
+Version: 0.8-3
 Date: 2010-03-18
 Title: apsrtable model-output formatter for social science
 Author: Michael Malecki
@@ -12,6 +12,6 @@ Description: Formats latex tables from one or more model objects
 Encoding: UTF-8
 License: GPL (>= 2)
 LazyLoad: yes
-Packaged: 2010-03-19 05:40:32 UTC; malecki
+Packaged: 2011-02-14 15:15:51 UTC; malecki
 Repository: CRAN
-Date/Publication: 2010-03-19 07:31:20
+Date/Publication: 2011-02-14 17:46:57
