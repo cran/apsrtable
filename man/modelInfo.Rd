@@ -6,6 +6,7 @@
 \alias{modelInfo,summary.gee-method}
 \alias{modelInfo,summary.coxph-method}
 \alias{modelInfo,summary.clogit-method}
+\alias{modelInfo,summary.negbin-method}
 \title{Model fit and diagnostic functions for output}
 \usage{ modelInfo(x) 
 \S4method{modelInfo}{summary.lm}(x)
@@ -14,6 +15,7 @@
 \S4method{modelInfo}{summary.gee}(x)
 \S4method{modelInfo}{summary.coxph}(x)
 \S4method{modelInfo}{summary.clogit}(x)
+\S4method{modelInfo}{summary.negbin}(x)
 }
 \description{Model diagnostic / summary information to be included in apsrtable output.}
 \arguments{
@@ -47,5 +49,8 @@ example(apsrtable)
 
 ### Switch back to the default
 setMethod("modelInfo", "summary.lm", apsrtable:::modelInfo.summary.lm)
-\dontrun{example(apsrtable)}
+\dontrun{
+example(apsrtable)
 }
+}
+

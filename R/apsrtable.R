@@ -128,6 +128,12 @@ apsrtable <- function (...,
   incl <- rep(TRUE,length(coefnames))
   names(incl) <- coefnames
   if(!is.null(omitcoef)) {
+    ## Boris Shor <boris@bshor.com> asked how to omitcoef by regex
+    ##  this line enables omitcoef=expression() 2010-03-17
+    ##  OR if you want to mix modes or provide multiple expr
+    ##  you can supply a list() eg list(expression(grep), 15) 
+    omitcoef <- unlist(sapply(omitcoef, eval.parent, n=2 ))
+    #print(omitcoef)
     incl[omitcoef] <- FALSE
   }
 ## now figure out position of each coef in each model
@@ -137,8 +143,12 @@ model.summaries <- coefPosition(model.summaries, coefnames)
   ## if they are supplied. 
     if(!is.null(coef.names)) {
       if(length(coef.names) != sum(incl)) {
-        warning("Supplied coef.names not the same length as output. Check automatic names before supplying 'pretty' names.\n") }
-      coefnames[incl] <- coef.names}
+        warning("Supplied coef.names not the same length as output. Check automatic names before supplying 'pretty' names.\n")
+      }
+      coefnames[incl] <- coef.names
+    } else {
+      coefnames[incl] <- sanitize(coefnames[incl])
+    }
   
   
   out.table <- lapply(model.summaries, function(x){
@@ -424,6 +434,8 @@ modelInfo.summary.glm <- function(x) {
   invisible(model.info)
 }
 
+
+
 ## 2009-02-25 mjm
 ## modelInfo request from Antonio Ramos for AER Tobit function
 ## Should be similar for 'survreg' objects, but without (necessarily)
@@ -479,12 +491,14 @@ setOldClass("summary.glm")
 setOldClass("summary.tobit")
 setOldClass("summary.gee")
 setOldClass("summary.coxph")
+setOldClass("summary.negbin")
+
 setMethod("modelInfo", "summary.lm", modelInfo.summary.lm )
 setMethod("modelInfo","summary.glm", modelInfo.summary.glm )
 setMethod("modelInfo","summary.tobit", modelInfo.summary.tobit)
 setMethod("modelInfo","summary.gee",modelInfo.summary.gee)
 setMethod("modelInfo","summary.coxph",modelInfo.summary.coxph)
-
+setMethod("modelInfo","summary.negbin",modelInfo.summary.glm)
 "coef.model.info" <- function(object,...) {
   x <- as.matrix(unlist(object)); invisible(x)
 } 
@@ -579,10 +593,20 @@ return(model.summaries)
   return(s)
 }
 
-apsrtableSummary.clogit <- apsrtableSummary.coxph <- function (x) {
+"apsrtableSummary.clogit" <- apsrtableSummary.coxph <- function (x) {
        s <- summary(x)
        if("robust se" %in% colnames(coef(s))) s$se <- coef(s)[,"robust se"]
        s$coefficients <- coef(s)[,c("coef","se(coef)", "Pr(>|z|)")]
+       return(s)
+}
+"apsrtableSummary.negbin" <- function (x) {
+       s <- summary(x)
+       coefs <- coef(s)
+       theta <- matrix(c(s$theta, s$SE.theta,NA,NA),1,4)
+       theta[,3] <- theta[,1]/theta[,2];
+       theta[,4] <- pnorm(abs(theta[,3]),lower.tail=FALSE)
+       rownames(theta) <- "$\\theta$"
+       s$coefficients <- rbind(coefs,theta)
        return(s)
 }
 
@@ -590,3 +614,30 @@ apsrtableSummary.clogit <- apsrtableSummary.coxph <- function (x) {
 "print.apsrtable" <- function(x,...) {
   cat(paste(x))
 }
+
+## ADM <admartin@wustl.edu> requested sanitizing coefnames 2010-03-10
+## this function taken from print.xtable v1.5-6.
+sanitize <- function(str) {
+  result <- str
+  result <- gsub("\\\\","SANITIZE.BACKSLASH",result)
+  result <- gsub("$","\\$",result,fixed=TRUE)
+  result <- gsub(">","$>$",result,fixed=TRUE)
+  result <- gsub("<","$<$",result,fixed=TRUE)
+  result <- gsub("|","$|$",result,fixed=TRUE)
+  result <- gsub("{","\\{",result,fixed=TRUE)
+  result <- gsub("}","\\}",result,fixed=TRUE)
+  result <- gsub("%","\\%",result,fixed=TRUE)
+  result <- gsub("&","\\&",result,fixed=TRUE)
+  result <- gsub("_","\\_",result,fixed=TRUE)
+  result <- gsub("#","\\#",result,fixed=TRUE)
+  result <- gsub("^","\\verb|^|",result,fixed=TRUE)
+  result <- gsub("~","\\~{}",result,fixed=TRUE)
+  result <- gsub("SANITIZE.BACKSLASH","$\\backslash$",result,fixed=TRUE)
+  return(result)
+}
+       
+
+
+## A couple of test calls here for random features
+## library(apsrtable);example(apsrtable);apsrtable(lm.D90, lm.D9, glm.D9, digits=1, align="center", stars="default", model.counter=0, order="rl", omitcoef="(Intercept)")
+## library(apsrtable);example(apsrtable);apsrtable(lm.D90,coef.names=c("\\#1","\\#0"))

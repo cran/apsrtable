@@ -84,12 +84,17 @@
     generate notes about the standard errors and indicators of
     statistical significance. Other notes can be named function calls or
     simple character strings.}
-  \item{omitcoef}{An optional positive-integer, or character, vector of
-    coefficient indices to exclude from the output.}
+  \item{omitcoef}{An optional integer or character vector of
+    coefficient indices, or an \link{expression} involving
+    \code{coefnames} that evaluates to integer or
+    character, of rows to exclude from the output. See details. }
   \item{coef.names}{An optional vector of names for coefficients. It is
     recommended to establish the \code{omitcoef} and \code{order}
     settings with automatic symbolic naming before supplying a vector of
-    \dQuote{pretty} variable names.}
+    \dQuote{pretty} variable names. If automatic symbolic naming is
+    used, names are taken from the variables in the models and
+    \dQuote{sanitized} for latex. If \code{coef.names} are supplied, they
+    must be valid latex, with double-backslash escape characters.}
   \item{coef.rows}{The number of rows in the table given to each
     coefficient: by default each coefficient's standard error is printed
     in a row beneath it, but setting \code{coef.rows} to 1 places it in
@@ -149,6 +154,22 @@
   some model diagnostics are included along with a (somewhat) flexible
   means to program or include different items depending on model object
   class.
+
+  The argument \code{omitcoef} suppresses output of terms in output. It
+  may be either a valid subscript index (integer or logical if opacity is desired, or
+  character for transparency), or an \code{\link{expression}}, such as a
+  \code{\link{grep}} expression to be evaluated with respect to
+  \code{coefnames} (without a dot). The internal object\code{coefnames}
+  is the union of all model terms, in the desired \code{order}. In the
+  example below, \dQuote{(Intercept)} is excluded by a regular
+  expression matching the parenthesis.
+
+  To include multiple regular expressions, or a mix of expressions with
+  other types, you may supply a \link{list}, but you must ensure that
+  the result is a valid subscript list: all character, all numeric, or
+  all logical. For example, if you refer to a specific coefficient by
+  its character name, include the argument \code{value=TRUE} in any
+  \code{\link{grep}} expressions in the list.
   
   Model diagnostic information (\dQuote{model info}) is handled by
   formal \code{\link{modelInfo}} methods defined for model
@@ -156,7 +177,7 @@
   named formatted (character) elements. To include fit (or other)
   information that is available from fitted model objects but \emph{not
   their summaries,} write an \code{\link{apsrtableSummary}} method to
-prepare a summary with the items needed for your own \code{modelInfo}
+  prepare a summary with the items needed for your own \code{modelInfo}
   method.
   
 Included are modelInfo functions for \code{lm}, \code{glm}, and \code{
@@ -193,5 +214,14 @@ Included are modelInfo functions for \code{lm}, \code{glm}, and \code{
 apsrtable(lm.D90, lm.D9, glm.D9, digits=1, align="l", 
           stars=1, model.counter=0, order="rl",
           coef.rows=1, col.hspace="3em", float="sidewaystable")
+
+## Omit rows by regular expressions
+apsrtable(lm.D9, omitcoef=expression(grep("\\\\(",coefnames)))
+apsrtable(lm.D90,lm.D9,
+          omitcoef=list("groupCtl",
+            expression(grep("\\\\(",coefnames,value=TRUE))
+            )
+          )
 }
+
 }

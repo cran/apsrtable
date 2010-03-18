@@ -142,7 +142,7 @@ the#1\endcsname\quad}}
 \usepackage{Sweave}
 %\VignetteIndexEntry{Using and Extending apsrtable}
 \begin{document}
-
+\SweaveOpts{keep.source=TRUE}
 
 \title{Replicable Publication-Ready Model Output with R package apsrtable\\Implementation \& Extension Guide}
 \author{\href{http://malecki.wustl.edu}{Michael Malecki}\footnote{PhD Candidate, Washington University in St. Louis}}
@@ -168,29 +168,27 @@ To demonstrate \texttt{apsrtable}'s features, I'll replicate some of the results
   \label{fig:ptimage}
 \end{figure}
 
-\begin{Schunk}
-\begin{Sinput}
-> pt <- read.csv("pt.csv")
-> library(apsrtable)
-> model1 <- lm(cgexp ~ 
-+              pres + maj +  
-+              lyp + gastil + age + trade + 
-+              prop65 + prop1564 + federal +
-+              oecd, data=pt)
-> model2 <- lm(cgexp ~ 
-+              pres + maj +
-+              lyp + gastil + age + trade + 
-+              prop65 + prop1564 + federal +
-+              oecd + col_uka + col_espa + col_otha +
-+              africa + asiae + laam, data=pt)
-> model3 <- lm(cgexp ~ 
-+              pro.pres + maj.parl + maj.pres + 
-+              lyp + gastil + age + trade + 
-+              prop65 + prop1564 + federal +
-+              oecd + col_uka + col_espa + col_otha +
-+              africa + asiae + laam, data=pt)
-\end{Sinput}
-\end{Schunk}
+<<models>>=
+pt <- read.csv("pt.csv")
+library(apsrtable)
+model1 <- lm(cgexp ~ 
+             pres + maj +  
+             lyp + gastil + age + trade + 
+             prop65 + prop1564 + federal +
+             oecd, data=pt)
+model2 <- lm(cgexp ~ 
+             pres + maj +
+             lyp + gastil + age + trade + 
+             prop65 + prop1564 + federal +
+             oecd + col_uka + col_espa + col_otha +
+             africa + asiae + laam, data=pt)
+model3 <- lm(cgexp ~ 
+             pro.pres + maj.parl + maj.pres + 
+             lyp + gastil + age + trade + 
+             prop65 + prop1564 + federal +
+             oecd + col_uka + col_espa + col_otha +
+             africa + asiae + laam, data=pt)
+@ 
 
 The result of simply calling \texttt{apsrtable(model1, model2, model3)} shouldn't be very far from usable output. We get decimal-aligned columns that are also lined up in the Latex source, errors in parentheses, and a single star indicating $p<.05$. But, we want to include ``robust'' standard errors, omit a bunch of controls, give the variables less cryptic names, and, to complete the exercise, add more stars. All of these are extremely easy to do with \emph{apsrtable}, but looking at the default output is a helpful baseline and a recommended first step every time.
 \begin{description}
@@ -245,77 +243,69 @@ ModelInfo methods are called on the list of model summaries (that is, the result
 So, what does a modelInfo method look like? It is a formal S4 method that takes a model summary object as its argument. Therefore to change the list of model information, just change what the modelInfo function returns for a given model class. Future versions will probably include a selection of presets, but changing by a quick call to \verb|setMethod| is straightforward and my aim here is to make clear how to get the modelInfo you want. For \verb|lm| objects, the default prints the $N$, $R^2$, adjusted $R^2$, and residual sd. The example in \verb|?modelInfo| shows you how to print only the $N$ and residual sd; the easiest way to find the default is via \verb|getMethod("modelInfo","summary.lm")|. The defaults for \verb|lm| and \verb|glm| are also included as named private functions, to make reversion easier (see the modelInfo example).
 
 To return to the Persson and Tabellini example, they summarize the controls used (but not displayed) in the modelInfo section. It is simple to write a function for \verb|summary.lm| that tests for the presence of a particular name among coefficients. Besides this, they report the $N$ as ``Number of Observations'' (so we want to change the name of that element in the list), and the adjusted $R^2$. So, we just create a custom \verb|modelInfo| method that returns these items.
-\begin{Schunk}
-\begin{Sinput}
-> ## Add robust se to the models
-> library(sandwich)
-> model1$se <- vcovHC(model1,type="HC1")
-> model2$se <- vcovHC(model2,type="HC1")
-> model3$se <- vcovHC(model3,type="HC1")
-> ## Create and register custom modelInfo for lm
-> 
-> setMethod("modelInfo", "summary.lm", function(x) {
-+   env <- parent.frame()
-+   digits <- evalq(digits,env)
-+   model.info <- list(
-+     "Continents"= (
-+         ifelse(!is.na(charmatch("laam",rownames(coef(x)))),
-+           "\\multicolumn{1}{c}{Yes}", "\\multicolumn{1}{c}{No}")),
-+     "Colonies" = (
-+         ifelse(!is.na(charmatch("col",rownames(coef(x)))),
-+           "\\multicolumn{1}{c}{Yes}", "\\multicolumn{1}{c}{No}")),
-+     "Number of\\tabularnewline Observations"= (
-+         formatC(sum(x$df[1:2]),format="d")),
-+     "adj. $R^2$" = (
-+         formatC(x$adj.r.squared,format="f",digits=digits)))
-+ class(model.info) <- "model.info"
-+ return(model.info)
-+ } )
-\end{Sinput}
-\end{Schunk}
+<<robust,results=hide>>=
+## Add robust se to the models
+library(sandwich)
+model1$se <- vcovHC(model1,type="HC1")
+model2$se <- vcovHC(model2,type="HC1")
+model3$se <- vcovHC(model3,type="HC1")
+
+
+## Create and register custom modelInfo for lm
+
+setMethod("modelInfo", "summary.lm", function(x) {
+  env <- parent.frame()
+  digits <- evalq(digits,env)
+  model.info <- list(
+    "Continents"= (
+        ifelse(!is.na(charmatch("laam",rownames(coef(x)))),
+          "\\multicolumn{1}{c}{Yes}", "\\multicolumn{1}{c}{No}")),
+    "Colonies" = (
+        ifelse(!is.na(charmatch("col",rownames(coef(x)))),
+          "\\multicolumn{1}{c}{Yes}", "\\multicolumn{1}{c}{No}")),
+    "Number of\\tabularnewline Observations"= (
+        formatC(sum(x$df[1:2]),format="d")),
+    "adj. $R^2$" = (
+        formatC(x$adj.r.squared,format="f",digits=digits)))
+class(model.info) <- "model.info"
+return(model.info)
+} )
+@
 
 With the new modelInfo method registered, the final call to \verb|apsrtable()| is shown below, and the results typeset as Table \ref{final-table}. 
-\begin{Schunk}
-\begin{Sinput}
-> apsrtable(model1,model2,model3,
-+ omitcoef=list(expression(grep("col_",coefnames,value=TRUE)),
-+   "(Intercept)","lyp", "gastil", "age", "trade", 
-+   "prop65", "prop1564", "federal" ,
-+   "oecd" , "africa", "asiae", "laam"),
-+ coef.names=c("Presidential","Majoritatian",
-+   "Proportional Presidential",
-+   "Majoritarian Parliamentary",
-+   "Majoritarian Presidential"),
-+ align="left",stars="default",
-+ notes=list(se.note(), stars.note())
-+ )
-\end{Sinput}
-\end{Schunk}
+<<finaltable,eval=FALSE>>=
+apsrtable(model1,model2,model3,
+omitcoef=list(expression(grep("col_",coefnames,value=TRUE)),
+  "(Intercept)","lyp", "gastil", "age", "trade", 
+  "prop65", "prop1564", "federal" ,
+  "oecd" , "africa", "asiae", "laam"),
+coef.names=c("Presidential","Majoritatian",
+  "Proportional Presidential",
+  "Majoritarian Parliamentary",
+  "Majoritarian Presidential"),
+align="left",stars="default",
+notes=list(se.note(), stars.note())
+)
+@ 
 \begin{table}[!ht]
 \centering
 \caption{Replication of Models 1--3 from Persson and Tabellini (2003), p. 149: ``Size of government and constitutions: Simple regression estimates.''}
 \label{final-table}
-\begin{tabular}{ l D{.}{.}{2}D{.}{.}{2}D{.}{.}{2} } 
-\hline 
-  & \multicolumn{ 1 }{ c }{ Model 1 } & \multicolumn{ 1 }{ c }{ Model 2 } & \multicolumn{ 1 }{ c }{ Model 3 } \\ \hline
- %                                      & Model 1                  & Model 2                  & Model 3                 \\ 
-Presidential                           & -6.08 ^{**}              & -5.29 ^{**}              &                         \\ 
-                                       & (1.97)                   & (1.92)                   &                         \\ 
-Majoritatian                           & -3.29 ^\dagger          & -5.74 ^{**}              &                         \\ 
-                                       & (1.73)                   & (1.95)                   &                         \\ 
-Proportional Presidential              &                          &                          & -7.08 ^*                \\ 
-                                       &                          &                          & (2.70)                  \\ 
-Majoritarian Parliamentary             &                          &                          & -7.30 ^*                \\ 
-                                       &                          &                          & (3.02)                  \\ 
-Majoritarian Presidential              &                          &                          & -10.36 ^{***}           \\ 
-                                       &                          &                          & (2.70)                   \\
- Continents                             & \multicolumn{1}{c}{No}  & \multicolumn{1}{c}{Yes} & \multicolumn{1}{c}{Yes}\\ 
-Colonies                               & \multicolumn{1}{c}{No}  & \multicolumn{1}{c}{Yes} & \multicolumn{1}{c}{Yes}\\ 
-Number of\tabularnewline Observations & 80                       & 80                       & 80                      \\ 
-adj. $R^2$                             & 0.58                     & 0.63                     & 0.63                     \\ \hline
- \multicolumn{4}{l}{\footnotesize{Robust standard errors in parentheses}}\\
-\multicolumn{4}{l}{\footnotesize{$^\dagger$ significant at $p<.10$; $^* p<.05$; $^{**} p<.01$; $^{***} p<.001$}} 
-\end{tabular} \end{table}
+<<printfinaltable,results=tex,echo=FALSE>>=
+apsrtable(model1,model2,model3,
+omitcoef=list(expression(grep("col_",coefnames,value=TRUE)),
+  "(Intercept)","lyp", "gastil", "age", "trade", 
+  "prop65", "prop1564", "federal" ,
+  "oecd" , "africa", "asiae", "laam"),
+coef.names=c("Presidential","Majoritatian",
+  "Proportional Presidential",
+  "Majoritarian Parliamentary",
+  "Majoritarian Presidential"),
+align="left",stars="default",
+notes=list(se.note(), stars.note())
+,Sweave=TRUE) 
+@ 
+\end{table}
 
 
 The example above shows how the \verb|modelInfo| methods can be used to change the display for linear model summary objects. In theory, any model object for which \verb|coef|, \verb|vcov|, and \verb|summary| methods should work with \textit{apsrtable}. Extending means mainly creating \verb|modelInfo| methods for other classes of model summaries. 
