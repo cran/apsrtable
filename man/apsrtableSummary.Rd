@@ -1,8 +1,10 @@
 \name{apsrtableSummary}
 \alias{apsrtableSummary}
 \alias{apsrtableSummary.gee}
+\alias{apsrtableSummary.lrm}
 \title{Custom summary functions for output tables}
-\usage{\method{apsrtableSummary}{gee}(x)}
+\usage{\method{apsrtableSummary}{gee}(x)
+\method{apsrtableSummary}{lrm}(x) }
 \arguments{\item{x}{A model object to be summarized in a format suitable
     for \code{apsrtable} output.}}
 \description{Provide alternative model summaries specifically for use with \code{apsrtable}}

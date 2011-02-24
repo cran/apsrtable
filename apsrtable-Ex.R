@@ -53,7 +53,7 @@ flush(stderr()); flush(stdout())
 
 ### Name: apsrtableSummary
 ### Title: Custom summary functions for output tables
-### Aliases: apsrtableSummary apsrtableSummary.gee
+### Aliases: apsrtableSummary apsrtableSummary.gee apsrtableSummary.lrm
 
 ### ** Examples
 
@@ -93,6 +93,7 @@ flush(stderr()); flush(stdout())
 ###   modelInfo,summary.glm-method modelInfo,summary.tobit-method
 ###   modelInfo,summary.gee-method modelInfo,summary.coxph-method
 ###   modelInfo,summary.clogit-method modelInfo,summary.negbin-method
+###   modelInfo,summary.lrm-method
 
 ### ** Examples
  

@@ -7,6 +7,7 @@
 \alias{modelInfo,summary.coxph-method}
 \alias{modelInfo,summary.clogit-method}
 \alias{modelInfo,summary.negbin-method}
+\alias{modelInfo,summary.lrm-method}
 \title{Model fit and diagnostic functions for output}
 \usage{ modelInfo(x) 
 \S4method{modelInfo}{summary.lm}(x)
@@ -16,6 +17,7 @@
 \S4method{modelInfo}{summary.coxph}(x)
 \S4method{modelInfo}{summary.clogit}(x)
 \S4method{modelInfo}{summary.negbin}(x)
+\S4method{modelInfo}{summary.lrm}(x)
 }
 \description{Model diagnostic / summary information to be included in apsrtable output.}
 \arguments{

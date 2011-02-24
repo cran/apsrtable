@@ -491,6 +491,143 @@ formatC(x$loglik[2],format="f",digits=digits),
        invisible(model.info)
 }
 
+
+## Req by Solomon Messing. This fxn is based on print.lrm, which seems
+## to contain everything needed for table and modelinfo.
+apsrtableSummary.lrm <- function (x) {
+  digits <- 4
+  strata.coefs <- FALSE
+  sg <- function(x, d) {
+    oldopt <- options(digits = d)
+    on.exit(options(oldopt))
+    format(x)
+  }
+  rn <- function(x, d) format(round(as.single(x), d))
+
+  ##cat("\n")
+    if (x$fail) {
+      cat("Model Did Not Converge\n")
+      return()
+    }
+  ##cat("Logistic Regression Model\n\n")
+  ##sdput(x$call)
+  ##cat("\n\nFrequencies of Responses\n")
+  ##print(x$freq)
+  if (length(x$sumwty)) {
+    ##cat("\n\nSum of Weights by Response Category\n")
+    ##print(x$sumwty)
+  }
+  ##cat("\n")
+  if (!is.null(x$nmiss)) {
+    ##cat("Frequencies of Missing Values Due to Each Variable\n")
+    ##print(x$nmiss)
+    ##cat("\n")
+  }
+  else if (!is.null(x$na.action)) 
+    naprint(x$na.action)
+  ns <- x$non.slopes
+  nstrata <- x$nstrata
+  if (!length(nstrata)) 
+    nstrata <- 1
+  pm <- x$penalty.matrix
+  if (length(pm)) {
+    psc <- if (length(pm) == 1) 
+      sqrt(pm)
+    else sqrt(diag(pm))
+    penalty.scale <- c(rep(0, ns), psc)
+    cof <- matrix(x$coef[-(1:ns)], ncol = 1)
+    ##cat("Penalty factors:\n\n")
+    ##print(as.data.frame(x$penalty, row.names = ""))
+    ##cat("\nFinal penalty on -2 log L:", rn(t(cof) %*% pm %*% 
+    ##    cof, 2), "\n\n")
+  }
+  vv <- diag(x$var)
+    cof <- x$coef
+    if (strata.coefs) {
+        cof <- c(cof, x$strata.coef)
+        vv <- c(vv, x$Varcov(x, which = "strata.var.diag"))
+        if (length(pm)) 
+            penalty.scale <- c(penalty.scale, rep(NA, x$nstrat - 
+                1))
+    }
+    score.there <- nstrata == 1 && (length(x$est) < length(x$coef) - 
+        ns)
+    stats <- x$stats
+    stats[2] <- signif(stats[2], 1)
+    stats[3] <- round(stats[3], 2)
+    stats[4] <- round(stats[4], 2)
+    stats[5] <- round(stats[5], 4)
+    stats[6] <- round(stats[6], 3)
+    stats[7] <- round(stats[7], 3)
+    if (nstrata == 1) {
+        stats[8] <- round(stats[8], 3)
+        stats[9] <- round(stats[9], 3)
+        stats[10] <- round(stats[10], 3)
+        if (length(stats) > 10) {
+            stats[11] <- round(stats[11], 3)
+            if (length(x$weights)) 
+                stats[12] <- round(stats[12], 3)
+        }
+    }
+    else stats <- c(stats, Strata = x$nstrat)
+
+    res <- list()
+    res$modelinfo <- stats
+
+    z <- cof/sqrt(vv)
+    stats <- cbind(cof,vv,cof/sqrt(vv) )
+    stats <- cbind(stats, (1 - pchisq(z^2, 1)))
+  ugh <- names(cof)
+  names(cof) <- sub("Intercept","(Intercept)",ugh)
+    dimnames(stats) <- list(names(cof), c("Coef", "S.E.", "Wald Z", 
+        "Pr(z)"))
+    if (length(pm)) 
+        stats <- cbind(stats, `Penalty Scale` = penalty.scale)
+    ##print(stats, quote = FALSE)
+    ##cat("\n")
+    if (score.there) {
+        q <- (1:length(cof))[-est.exp]
+        if (length(q) == 1) 
+            vv <- x$var[q, q]
+        else vv <- diag(x$var[q, q])
+        z <- x$u[q]/sqrt(vv)
+        stats <- cbind(z, (1 - pchisq(z^2, 1)))
+        dimnames(stats) <- list(names(cof[q]), c("Score Z", "P"))
+        ##printd(stats, quote = FALSE)
+        ##cat("\n")
+    }
+  res$coefficients <- stats
+  class(res) <- "summary.lrm"
+  invisible(res)
+}
+modelInfo.summary.lrm <- function(x) {
+  env <- sys.parent()
+  digits<- evalq(digits, envir=env)
+  x <- as.numeric(x$modelinfo)
+  ##         number of observations
+  ##         used in the fit, maximum absolute value of first derivative
+  ##         of log likelihood, model likelihood ratio chi-square, d.f.,
+  ##         P-value, c index (area under ROC curve), Somers' D_{xy},
+  ##         Goodman-Kruskal gamma, Kendall's tau-a rank correlations
+  ##         between predicted probabilities and observed response, the
+  ##         Nagelkerke R^2 index, and the Brier score
+  model.info <- list(
+                     "$N$"=formatC(x[1],format="d"),
+                     "Max.Deriv."=formatC(x[2],format="f",digits=digits),
+                     "LR $\\chi^2$"=formatC(x[3],format="f",digits=digits),
+                     "d.f."=formatC(x[4],format="d"),
+                     "$P$"=formatC(x[5],format="f",digits=digits),
+                     "C-index"=formatC(x[6],format="f",digits=digits),
+                     "Somers $D_{xy}$"=formatC(x[7],format="f",digits=digits),
+                     "$\\gamma"=formatC(x[8],format="f",digits=digits),
+                     "Kendall's tau-a"=formatC(x[9],format="f",digits=digits),
+                     "Nagelkerke $R^2$"=formatC(x[10],format="f",digits=digits),
+                     "Brier" = formatC(x[11],format="f",digits=digits))
+  class(model.info) <- "model.info"
+  invisible(model.info) 
+}
+
+
 ## tobit requested by Antonio Ramos added by mjm 2009-02-25
 ## gee requested by Dustin Tingley started by mjm 2009-04-24
 ## coxph provided by David Hugh-Jones 2009-11-20 added mjm 2009-12-08
@@ -502,6 +639,7 @@ setOldClass("summary.tobit")
 setOldClass("summary.gee")
 setOldClass("summary.coxph")
 setOldClass("summary.negbin")
+setOldClass("summary.lrm")
 
 setMethod("modelInfo", "summary.lm", modelInfo.summary.lm )
 setMethod("modelInfo","summary.glm", modelInfo.summary.glm )
@@ -509,6 +647,8 @@ setMethod("modelInfo","summary.tobit", modelInfo.summary.tobit)
 setMethod("modelInfo","summary.gee",modelInfo.summary.gee)
 setMethod("modelInfo","summary.coxph",modelInfo.summary.coxph)
 setMethod("modelInfo","summary.negbin",modelInfo.summary.glm)
+setMethod("modelInfo", "summary.lrm", modelInfo.summary.lrm )
+
 "coef.model.info" <- function(object,...) {
   x <- as.matrix(unlist(object)); invisible(x)
 } 
