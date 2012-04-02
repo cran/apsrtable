@@ -4,6 +4,7 @@
 %%% Apsrtable writeup for TPM, coinciding with 0.7-0
 %%%
 %%% mjm / 2009-01-14 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\VignetteIndexEntry{Using and Extending apsrtable}
 
 
 \usepackage[dvipsnames,usenames]{xcolor}

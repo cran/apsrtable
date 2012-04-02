@@ -2,6 +2,7 @@
 \alias{modelInfo}
 \alias{modelInfo,summary.lm-method}
 \alias{modelInfo,summary.glm-method}
+\alias{modelInfo,summary.svyglm-method}
 \alias{modelInfo,summary.tobit-method}
 \alias{modelInfo,summary.gee-method}
 \alias{modelInfo,summary.coxph-method}
@@ -12,6 +13,7 @@
 \usage{ modelInfo(x) 
 \S4method{modelInfo}{summary.lm}(x)
 \S4method{modelInfo}{summary.glm}(x)
+\S4method{modelInfo}{summary.svyglm}(x)
 \S4method{modelInfo}{summary.tobit}(x)
 \S4method{modelInfo}{summary.gee}(x)
 \S4method{modelInfo}{summary.coxph}(x)

@@ -1,4 +1,4 @@
-apsrtable <- function (..., 
+apsrtable <- function (...,
                        se=c("robust","vcov","both","pval"),
                        # model.names can be shorter, others numbered;
                        # numbers start at value of model.counter
@@ -16,9 +16,10 @@ apsrtable <- function (...,
                        Sweave=FALSE, float="table",
                        Minionfig=FALSE,
                        label=NULL,caption=NULL,
-                       caption.position=c("above","below") 
+                       caption.position=c("above","below")
                        ) {
   x <- list()
+  myenv <- new.env()
   signif.stars <- TRUE
   order <- match.arg(order,c("lr","rl","longest"))
   opts <- match.call(expand.dots=FALSE)
@@ -81,13 +82,13 @@ apsrtable <- function (...,
     x <- c(x,"%Uncomment the following line and the end one to change figure versions\n%if you are using a full-featured family such as Minion Pro.\n\\figureversion{tabular}\n")
   }
 
-  
+
   ## get the summaries for the objects
   model.summaries <- lapply(models,
                             ## If an apsrtableSummary exists, use it
                             ## Otherwise, use summary.
                             function(x) {
-                              s <- try(apsrtableSummary(x), silent=TRUE) 
+                              s <- try(apsrtableSummary(x), silent=TRUE)
                               if (inherits(s, "try-error")) {
                                 s <- summary(x)
                               }
@@ -95,7 +96,7 @@ apsrtable <- function (...,
                                 est <- coef(x)
                                 if(class(x$se) == "matrix") {
                                   x$se <- sqrt(diag(x$se))
-                                } 
+                                }
                                 s$coefficients[,3] <- tval <- est / x$se
                                 e <- try(s$coefficients[,4] <-
                                   2 * pt(abs(tval),
@@ -108,11 +109,11 @@ apsrtable <- function (...,
                                 s$se <- x$se }
                               if(se == "pval") {
                                 s$coefficients[,2] <- s$coefficients[,4]
-                                
+
                               }
                               return(s)
                             } )
-  
+
   ## Quietly switch the se.note to the pval.note as needed
   if(se=="pval") { se.note <- pval.note }
 
@@ -129,7 +130,7 @@ apsrtable <- function (...,
     m.first = length(model.names)+1
     model.names=c(model.names, paste( "Model", m.first:nmodels))
   }
-  
+
 ## get and order the coefficient names from all models
   coefnames <- orderCoef(model.summaries, order=order)
 
@@ -140,16 +141,16 @@ apsrtable <- function (...,
     ## Boris Shor <boris@bshor.com> asked how to omitcoef by regex
     ##  this line enables omitcoef=expression() 2010-03-17
     ##  OR if you want to mix modes or provide multiple expr
-    ##  you can supply a list() eg list(expression(grep), 15) 
-    omitcoef <- unlist(sapply(omitcoef, eval.parent, n=2 ))
+    ##  you can supply a list() eg list(expression(grep), 15)
+    omitcoef <- unlist(sapply(omitcoef, eval, envir=myenv ))
     #print(omitcoef)
     incl[omitcoef] <- FALSE
   }
 ## now figure out position of each coef in each model
 model.summaries <- coefPosition(model.summaries, coefnames)
-  
+
   ## Now that the coef name matching is done, switch to pretty names
-  ## if they are supplied. 
+  ## if they are supplied.
     if(!is.null(coef.names)) {
       if(length(coef.names) != sum(incl)) {
         warning("Supplied coef.names not the same length as output. Check automatic names before supplying 'pretty' names.\n")
@@ -158,9 +159,9 @@ model.summaries <- coefPosition(model.summaries, coefnames)
     } else {
       coefnames[incl] <- sanitize(coefnames[incl])
     }
-  
-  
-  out.table <- lapply(model.summaries, function(x){  
+
+
+  out.table <- lapply(model.summaries, function(x){
     var.pos <- attr(x,"var.pos")
     model.out <- model.se.out <- star.out <- rep(NA,length(coefnames))
     model.out[var.pos] <- x$coefficients[,1]
@@ -169,14 +170,14 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                         paste(formatC(model.out,digits=digits,format="f"),
                               star.out),
                         "")
-    
-    
-    
+
+
+
     model.se.out[var.pos] <- x$coefficients[,2]
     if( !is.null(x$se) & se %in% c("robust","both") ) {
       model.se.out[var.pos] <- x$se
     }
-    
+
     model.se.out <- ifelse(!is.na(model.se.out),
                            paste("(",
                                  formatC(model.se.out,
@@ -184,7 +185,7 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                                          format="f"),
                                  ")",sep=""),
                            "")
-    if(se=="both" && !is.null(x$se)){      
+    if(se=="both" && !is.null(x$se)){
       model.se.out[var.pos] <- ifelse(model.se.out != "",
                              paste(model.se.out," [",
                                    formatC(x$coefficients[,2],
@@ -193,7 +194,7 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                                    "]",sep=""),
                              "")
     }
-    
+
     if(coef.rows==2) {
       ## Create two side by side columns and mesh them together
       model.out <- rep(model.out[incl], each=2)
@@ -208,17 +209,17 @@ model.summaries <- coefPosition(model.summaries, coefnames)
       model.out <- model.out[incl]
       model.out <- cbind(model.out, model.se.out[incl])
     }
-    attr(model.out,"model.info") <- modelInfo(x)  
+    attr(model.out,"model.info") <- modelInfo(x)
     return(model.out)
   })
-  
+
   out.matrix <- matrix(unlist(out.table),
                        length(coefnames[incl])*coef.rows,
                        nmodels*coef.cols)
 
   out.matrix <- cbind(rep(coefnames[incl],each=coef.rows), out.matrix)
   if(coef.rows==2) {
-    out.matrix[ (row(out.matrix)[,1] %% 2 ==0) , 1] <- ""  
+    out.matrix[ (row(out.matrix)[,1] %% 2 ==0) , 1] <- ""
   }
   out.info <- lapply(out.table, attr, "model.info")
   info.names <- orderCoef(out.info)
@@ -232,12 +233,12 @@ model.summaries <- coefPosition(model.summaries, coefnames)
 
   out.info <- matrix(unlist(out.info), length(info.names), nmodels)
   out.info <- cbind(as.character(info.names), out.info)
-  
+
   if(coef.rows==2) {
     out.matrix <- rbind(c("%",model.names ),out.matrix)
   }
   outrows <- nrow(out.matrix)
-  
+
   ## This does the pretty latex formatting, where commented model names
   ## line up with appropriately sized columns of numbers.
 
@@ -264,7 +265,7 @@ model.summaries <- coefPosition(model.summaries, coefnames)
     out.info[,1] <- format(out.info[,1])
     out.info <- apply(out.info, 1, paste, collapse=" & ")
   }
-  
+
   headrow <- paste("\n\\hline \n",
                    paste(" &", paste("\\multicolumn{",coef.cols,"}{",
                                multicolumn.align,"}{",
@@ -272,12 +273,12 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                "\\\\ \\hline\n")
   if(long) { headrow <- paste(headrow,"\\endhead\n",sep="") }
   x <- c(x, headrow)
-  
+
   #x <- c(x,"")
   x <- c(x,paste(out.matrix, collapse="\\\\ \n"))
   x <- c(x,"\\\\\n")
   x <- c(x,paste(out.info, collapse="\\\\ \n"))
-  
+
   ## Do notes
    ## Evaluate the notes list
     ## Switch the se to either robust or regular --
@@ -287,17 +288,18 @@ model.summaries <- coefPosition(model.summaries, coefnames)
                 sum(unlist(lapply(model.summaries,
                                   function(x) !is.null(x$se))) >0 ) ) ,
                "robust","vcov")
-  myenv <- new.env()
-  notes <- lapply(notes, do.call,
+  thenotes <- as.list(1:length(notes))
+  thenotes[!sapply(notes,is.function)] <- notes[!sapply(notes,is.function)]
+  thenotes[sapply(notes,is.function)] <- lapply(notes[sapply(notes,is.function)], do.call,
                   args=list(env=myenv))
-  
+
   x <- c(x,"\\\\ \\hline\n")
-  notes <- lapply(notes, function(x) {  # eek! note coef cols was wrong
+  notes <- lapply(thenotes, function(x) {  # eek! note coef cols was wrong
                                         # fixed 2009-05-07 mjm
     paste("\\multicolumn{",(nmodels*coef.cols)+1,"}{l}{\\footnotesize{", x , "}}",sep="")
              } )
   x <- c(x, paste(notes, collapse="\\\\\n"))
- 
+
   if(!long) { x <- c(x,"\n\\end{tabular}") }
   if(long) { x <- c(x,"\n\\end{longtable}") }
   if(caption.position=="b") {
@@ -313,10 +315,10 @@ model.summaries <- coefPosition(model.summaries, coefnames)
 
 
 apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
-                       signif.stars = getOption("show.signif.stars"), 
+                       signif.stars = getOption("show.signif.stars"),
                        signif.legend = signif.stars,
                        dig.tst = max(1, min(5, digits - 1)), cs.ind = 1:k,
-                       tst.ind = k + 1, zap.ind = integer(0), 
+                       tst.ind = k + 1, zap.ind = integer(0),
                        P.values = NULL,
                        has.Pvalue = nc >= 3 && # used to be 4
                        substr(colnames(x)[nc],
@@ -324,9 +326,9 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
                        grep("z",colnames(x)[nc]) == TRUE,
                        eps.Pvalue = .Machine$double.eps, na.print = "NA",
                        stars="default",lev=.05,
-    ...) 
+    ...)
 {
-    if (is.null(d <- dim(x)) || length(d) != 2) 
+    if (is.null(d <- dim(x)) || length(d) != 2)
         stop("'x' must be coefficient matrix/data frame")
     nc <- d[2]
     if (is.null(P.values)) {
@@ -337,7 +339,7 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
         }
         P.values <- has.Pvalue && scp
     }
-    else if (P.values && !has.Pvalue) 
+    else if (P.values && !has.Pvalue)
         stop("'P.values' is TRUE, but 'has.Pvalue' is not")
     if (has.Pvalue && !P.values) {
         d <- dim(xm <- data.matrix(x[, -nc, drop = FALSE]))
@@ -345,10 +347,10 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
         has.Pvalue <- FALSE
     }
     else xm <- data.matrix(x)
-    k <- nc - has.Pvalue - (if (missing(tst.ind)) 
+    k <- nc - has.Pvalue - (if (missing(tst.ind))
         1
     else length(tst.ind))
-    if (!missing(cs.ind) && length(cs.ind) > k) 
+    if (!missing(cs.ind) && length(cs.ind) > k)
         stop("wrong k / cs.ind")
     Cf <- array("", dim = d, dimnames = dimnames(xm))
     ok <- !(ina <- is.na(xm))
@@ -356,55 +358,55 @@ apsrStars <- function (x, digits = max(3, getOption("digits") - 2),
         acs <- abs(coef.se <- xm[, cs.ind, drop = FALSE])
         if (any(is.finite(acs))) {
             digmin <- 1 + floor(log10(range(acs[acs != 0], na.rm = TRUE)))
-            Cf[, cs.ind] <- format(round(coef.se, max(1, digits - 
+            Cf[, cs.ind] <- format(round(coef.se, max(1, digits -
                 digmin)), digits = digits)
         }
     }
-    if (length(tst.ind) > 0) 
-        Cf[, tst.ind] <- format(round(xm[, tst.ind], digits = dig.tst), 
+    if (length(tst.ind) > 0)
+        Cf[, tst.ind] <- format(round(xm[, tst.ind], digits = dig.tst),
             digits = digits)
-    if (length(zap.ind) > 0) 
-        Cf[, zap.ind] <- format(zapsmall(xm[, zap.ind], digits = digits), 
+    if (length(zap.ind) > 0)
+        Cf[, zap.ind] <- format(zapsmall(xm[, zap.ind], digits = digits),
             digits = digits)
-    if (any(r.ind <- !((1:nc) %in% c(cs.ind, tst.ind, zap.ind, 
-        if (has.Pvalue) nc)))) 
+    if (any(r.ind <- !((1:nc) %in% c(cs.ind, tst.ind, zap.ind,
+        if (has.Pvalue) nc))))
         Cf[, r.ind] <- format(xm[, r.ind], digits = digits)
-    okP <- if (has.Pvalue) 
+    okP <- if (has.Pvalue)
         ok[, -nc]
     else ok
     x1 <- Cf[okP]
     dec <- getOption("OutDec")
-    if (dec != ".") 
+    if (dec != ".")
         x1 <- chartr(dec, ".", x1)
     x0 <- (xm[okP] == 0) != (as.numeric(x1) == 0)
     if (length(not.both.0 <- which(x0 & !is.na(x0)))) {
-        Cf[okP][not.both.0] <- format(xm[okP][not.both.0], digits = max(1, 
+        Cf[okP][not.both.0] <- format(xm[okP][not.both.0], digits = max(1,
             digits - 1))
     }
-    if (any(ina)) 
+    if (any(ina))
         Cf[ina] <- na.print
-    
+
     if (P.values) {
         if (!is.logical(signif.stars) || is.na(signif.stars)) {
             warning("option \"show.signif.stars\" is invalid: assuming TRUE")
             signif.stars <- TRUE
         }
-        
+
         if (any(okP <- ok[, nc])) {
           pv <- as.vector(xm[, nc])
-          Cf[okP, nc] <- format.pval(pv[okP], digits = dig.tst, 
+          Cf[okP, nc] <- format.pval(pv[okP], digits = dig.tst,
                                      eps = eps.Pvalue)
           signif.stars <- signif.stars && any(pv[okP] < 0.1)
           Signif <- ""
           if (signif.stars && stars=="default") {
-            Signif <- symnum(pv, corr = FALSE, na = FALSE, 
-                             cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), 
+            Signif <- symnum(pv, corr = FALSE, na = FALSE,
+                             cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
                              symbols = c("^{***}", "^{**}", "^*", "^\\dagger\ ", " "))
             Cf <- cbind(Cf, format(Signif))
           }
           else if (signif.stars && stars==1) {
-           Signif <- symnum(pv, corr = FALSE, na = FALSE, 
-                             cutpoints = c(0,lev,1), 
+           Signif <- symnum(pv, corr = FALSE, na = FALSE,
+                             cutpoints = c(0,lev,1),
                              symbols = c("^*"," "))
           }
           return(Signif)
@@ -427,7 +429,7 @@ modelInfo.summary.lm <- function(x) {
                      "adj. $R^2$"=formatC(x$adj.r.squared,format="f",digits=digits),
                      "Resid. sd" = formatC(x$sigma,format="f",digits=digits))
   class(model.info) <- "model.info"
-  invisible(model.info) 
+  invisible(model.info)
 }
 
 modelInfo.summary.glm <- function(x) {
@@ -435,7 +437,7 @@ modelInfo.summary.glm <- function(x) {
   digits <- evalq(digits, envir=env)
   model.info <- list(
                        "$N$"=formatC(sum(x$df[1:2]),format="d"),
-                       
+
                        AIC=formatC(x$aic,format="f",digits=digits),
                        BIC= formatC(
                          ( (x$aic - 2*(length(x$coef)) ) +
@@ -453,7 +455,7 @@ modelInfo.summary.glm <- function(x) {
 ## 2009-02-25 mjm
 ## modelInfo request from Antonio Ramos for AER Tobit function
 ## Should be similar for 'survreg' objects, but without (necessarily)
-## censoring info.. 
+## censoring info..
 "modelInfo.summary.tobit" <- function(x) {
  env <- sys.parent()
  digits <- evalq(digits, envir=env)
@@ -527,22 +529,22 @@ apsrtableSummary.lrm <- function (x) {
     ##print(x$nmiss)
     ##cat("\n")
   }
-  else if (!is.null(x$na.action)) 
+  else if (!is.null(x$na.action))
     ##naprint(x$na.action)
   ns <- x$non.slopes
   nstrata <- x$nstrata
-  if (!length(nstrata)) 
+  if (!length(nstrata))
     nstrata <- 1
   pm <- x$penalty.matrix
   if (length(pm)) {
-    psc <- if (length(pm) == 1) 
+    psc <- if (length(pm) == 1)
       sqrt(pm)
     else sqrt(diag(pm))
     penalty.scale <- c(rep(0, ns), psc)
     cof <- matrix(x$coef[-(1:ns)], ncol = 1)
     ##cat("Penalty factors:\n\n")
     ##print(as.data.frame(x$penalty, row.names = ""))
-    ##cat("\nFinal penalty on -2 log L:", rn(t(cof) %*% pm %*% 
+    ##cat("\nFinal penalty on -2 log L:", rn(t(cof) %*% pm %*%
     ##    cof, 2), "\n\n")
   }
   vv <- diag(x$var)
@@ -550,11 +552,11 @@ apsrtableSummary.lrm <- function (x) {
     if (strata.coefs) {
         cof <- c(cof, x$strata.coef)
         vv <- c(vv, x$Varcov(x, which = "strata.var.diag"))
-        if (length(pm)) 
-            penalty.scale <- c(penalty.scale, rep(NA, x$nstrat - 
+        if (length(pm))
+            penalty.scale <- c(penalty.scale, rep(NA, x$nstrat -
                 1))
     }
-    score.there <- nstrata == 1 && (length(x$est) < length(x$coef) - 
+    score.there <- nstrata == 1 && (length(x$est) < length(x$coef) -
         ns)
     stats <- x$stats
     stats[2] <- signif(stats[2], 1)
@@ -569,7 +571,7 @@ apsrtableSummary.lrm <- function (x) {
         stats[10] <- round(stats[10], 3)
         if (length(stats) > 10) {
             stats[11] <- round(stats[11], 3)
-            if (length(x$weights)) 
+            if (length(x$weights))
                 stats[12] <- round(stats[12], 3)
         }
     }
@@ -583,19 +585,20 @@ apsrtableSummary.lrm <- function (x) {
     stats <- cbind(stats, (1 - pchisq(z^2, 1)))
   ugh <- names(cof)
   names(cof) <- sub("Intercept","(Intercept)",ugh)
-    dimnames(stats) <- list(names(cof), c("Coef", "S.E.", "Wald Z", 
+    dimnames(stats) <- list(names(cof), c("Coef", "S.E.", "Wald Z",
         "Pr(z)"))
-    if (length(pm)) 
+    if (length(pm))
         stats <- cbind(stats, `Penalty Scale` = penalty.scale)
     ##print(stats, quote = FALSE)
     ##cat("\n")
     if (score.there) {
         q <- (1:length(cof))[-est.exp]
-        if (length(q) == 1) 
+        if (length(q) == 1)
             vv <- x$var[q, q]
         else vv <- diag(x$var[q, q])
         z <- x$u[q]/sqrt(vv)
         stats <- cbind(z, (1 - pchisq(z^2, 1)))
+
         dimnames(stats) <- list(names(cof[q]), c("Score Z", "P"))
         ##printd(stats, quote = FALSE)
         ##cat("\n")
@@ -629,7 +632,7 @@ apsrtableSummary.lrm <- function (x) {
                      "Nagelkerke $R^2$"=formatC(x[10],format="f",digits=digits),
                      "Brier" = formatC(x[11],format="f",digits=digits))
   class(model.info) <- "model.info"
-  invisible(model.info) 
+  invisible(model.info)
 }
 
 ## "apsrtableSummary.mer" <- function(object) {
@@ -702,6 +705,7 @@ setOldClass("summary.gee")
 setOldClass("summary.coxph")
 setOldClass("summary.negbin")
 setOldClass("summary.lrm")
+setOldClass("summary.svyglm")
 
 setMethod("modelInfo", "summary.lm", modelInfo.summary.lm )
 setMethod("modelInfo","summary.glm", modelInfo.summary.glm )
@@ -710,10 +714,12 @@ setMethod("modelInfo","summary.gee",modelInfo.summary.gee)
 setMethod("modelInfo","summary.coxph",modelInfo.summary.coxph)
 setMethod("modelInfo","summary.negbin",modelInfo.summary.glm)
 setMethod("modelInfo", "summary.lrm", modelInfo.summary.lrm )
+setMethod("modelInfo", "summary.svyglm", apsrtable:::modelInfo.summary.glm )
+
 
 "coef.model.info" <- function(object,...) {
   x <- as.matrix(unlist(object)); invisible(x)
-} 
+}
 
 ## RULES: All according to longest model,
 ##        then left to right
@@ -729,7 +735,7 @@ orderCoef <- function(model.summaries,order="lr") {
     coefnames <-  rownames(coef(model.summaries[[longest]]))
   } else {
     coefnames <- rownames(coef(model.summaries[[modelorder[1]]])) }
-  
+
   for(i in seq_along(model.summaries)) {
     matched <- match(rownames(coef(model.summaries[[i]])), coefnames, nomatch=0)
     unmatched <- which(is.na(matched) | matched==0)
@@ -844,17 +850,64 @@ sanitize <- function(str) {
   result <- gsub("SANITIZE.BACKSLASH","$\\backslash$",result,fixed=TRUE)
   return(result)
 }
-       
+
 fround <- function (x, digits) {
     format (round (x, digits), nsmall=digits)
 }
-  
+
 pfround <- function (x, digits) {
     print (fround (x, digits), quote=FALSE)
 }
- 
+
 
 
 ## A couple of test calls here for random features
 ## library(apsrtable);example(apsrtable);apsrtable(lm.D90, lm.D9, glm.D9, digits=1, align="center", stars="default", model.counter=0, order="rl", omitcoef="(Intercept)")
 ## library(apsrtable);example(apsrtable);apsrtable(lm.D90,coef.names=c("\\#1","\\#0"))
+
+
+## setSummaryTemplate(mer = c("Log-likelihood" = "($logLik:f#)",
+##                      "Deviance" = "($deviance:f#)",
+##                      "AIC" = "($AIC:f#)",
+##                      "BIC" = "($BIC:f#)",
+##                      "N" = "($N:d)",
+##                      "Groups" = "($Groups:d)"))
+
+## apsrtabeSummary.mer <- function (obj, alpha = lev, ...) {
+##   s <- summary(obj)
+##   coef <- coef(s)
+##   ##lower <- qnorm(p = alpha/2, mean = coef[, 1], sd = coef[,2])
+##   ##upper <- qnorm(p = 1 - alpha/2, mean = coef[, 1], sd = coef[,2])
+##   if (ncol(coef(s)) == 3) {
+##     coef[,4] <- (1 - pnorm(coef(s)[, 3])) * 2
+##     coef <- cbind(coef,, p)
+##   }
+##   else {
+##     coef <- cbind(coef,0,0,0)
+##   }
+##   RE <- s@REmat
+##   ranef <- cbind(as.numeric(RE[,3]), as.numeric(RE[,4]), NA,NA,NA,NA)
+##   rownames(ranef) <- paste("Ranef", RE[,1], sep = " - ")
+##   coef <- rbind(coef, ranef)
+##   colnames(coef) <- c("est", "se", "stat", "p", "lwr", "upr")
+
+##   ## Factor levels.
+##   xlevels <- list()
+##   Contr <- names(attr(model.matrix(obj), "contrasts"))
+##   for (c in Contr) xlevels[[c]] <- levels(obj@frame[,c])
+
+##   ## Model fit statistics.
+##   ll <- logLik(obj)[1]
+##   deviance <- deviance(obj)
+##   AIC <- AIC(obj)
+##   BIC <- BIC(obj)
+##   N <- as.numeric(smry@dims["n"])
+##   G <- as.numeric(smry@ngrps)
+##   sumstat <- c(logLik = ll, deviance = deviance, AIC = AIC,
+##                BIC = BIC, N = N, Groups = G)
+
+##   ## Return model summary.
+##   list(coef = coef, sumstat = sumstat,
+##        contrasts = attr(model.matrix(obj), "contrasts"),
+##        xlevels = xlevels, call = obj@call)
+## }
